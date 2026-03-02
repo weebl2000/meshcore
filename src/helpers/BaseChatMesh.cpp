@@ -905,6 +905,10 @@ bool BaseChatMesh::removeContact(ContactInfo& contact) {
 
   removeSessionKey(contact.id.pub_key);  // also remove session key if any
 
+  // adjust pending rekey index before shifting array
+  if (_pending_rekey_idx == idx) _pending_rekey_idx = -1;
+  else if (_pending_rekey_idx > idx) _pending_rekey_idx--;
+
   // remove from contacts array and parallel nonce tracking
   num_contacts--;
   while (idx < num_contacts) {
@@ -1081,7 +1085,7 @@ uint16_t BaseChatMesh::getEncryptionNonceFor(const ContactInfo& contact) {
   uint16_t nonce = 0;
   auto entry = findSessionKey(contact.id.pub_key);
   if (canUseSessionKey(entry)) {
-    ++entry->nonce;
+    ++entry->nonce;  // may reach 65535 → canUseSessionKey() fails next call → falls back to static ECDH
     if (entry->sends_since_last_recv < 255) entry->sends_since_last_recv++;
     session_keys_dirty = true;
     nonce = entry->nonce;
@@ -1257,7 +1261,10 @@ uint8_t BaseChatMesh::handleIncomingSessionKeyInit(ContactInfo& from, const uint
 
   // 4. Store in pool (dual-decode: new key active, old key still valid)
   auto entry = allocateSessionKey(from.id.pub_key);
-  if (!entry) return 0;
+  if (!entry) {
+    memset(new_session_key, 0, SESSION_KEY_SIZE);
+    return 0;
+  }
 
   if (entry->state == SESSION_STATE_ACTIVE || entry->state == SESSION_STATE_DUAL_DECODE) {
     memcpy(entry->prev_session_key, entry->session_key, SESSION_KEY_SIZE);
