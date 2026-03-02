@@ -489,6 +489,37 @@ bool EnvironmentSensorManager::querySensors(uint8_t requester_permissions, Cayen
 }
 
 
+bool EnvironmentSensorManager::hasTemperatureSensor() {
+#if ENV_INCLUDE_AHTX0
+  if (AHTX0_initialized) return true;
+#endif
+#if ENV_INCLUDE_BME680
+  if (BME680_initialized) return true;
+#endif
+#if ENV_INCLUDE_BME280
+  if (BME280_initialized) return true;
+#endif
+#if ENV_INCLUDE_BMP280
+  if (BMP280_initialized) return true;
+#endif
+#if ENV_INCLUDE_SHTC3
+  if (SHTC3_initialized) return true;
+#endif
+#if ENV_INCLUDE_SHT4X
+  if (SHT4X_initialized) return true;
+#endif
+#if ENV_INCLUDE_LPS22HB
+  if (LPS22HB_initialized) return true;
+#endif
+#if ENV_INCLUDE_MLX90614
+  if (MLX90614_initialized) return true;
+#endif
+#if ENV_INCLUDE_BMP085
+  if (BMP085_initialized) return true;
+#endif
+  return false;
+}
+
 int EnvironmentSensorManager::getNumSettings() const {
   int settings = 0;
   #if ENV_INCLUDE_GPS
