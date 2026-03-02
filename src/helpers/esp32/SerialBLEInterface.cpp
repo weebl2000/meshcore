@@ -138,6 +138,8 @@ void SerialBLEInterface::enable() {
   // Start the service
   pService->start();
 
+  BLEDevice::setPower(ESP_PWR_LVL_P9);
+
   // Start advertising
 
   //pServer->getAdvertising()->setMinInterval(500);
