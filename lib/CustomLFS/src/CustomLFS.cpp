@@ -78,6 +78,7 @@ int CustomLFS::_flash_erase(const struct lfs_config *c, lfs_block_t block)
   VERIFY(flash_nrf5x_erase(page_addr), -1);
   flash_nrf5x_flush();
   VERIFY(flash_nrf5x_write(page_addr, page_buf, FLASH_NRF52_PAGE_SIZE) > 0, -1);
+  flash_nrf5x_flush();
 
   return 0;
 }
