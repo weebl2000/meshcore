@@ -22,7 +22,7 @@ size_t Packet::writePath(uint8_t* dest, const uint8_t* src, uint8_t path_len) {
   uint8_t hash_size = (path_len >> 6) + 1;
   size_t len = hash_count*hash_size;
   if (len > MAX_PATH_SIZE) {
-    MESH_DEBUG_PRINTLN("Packet::copyPath, invalid path_len=%d", (uint32_t)path_len);
+    MESH_DEBUG_PRINTLN("Packet::writePath, invalid path_len=%d", (uint32_t)path_len);
     return 0;   // Error
   }
   memcpy(dest, src, len);
@@ -30,7 +30,9 @@ size_t Packet::writePath(uint8_t* dest, const uint8_t* src, uint8_t path_len) {
 }
 
 uint8_t Packet::copyPath(uint8_t* dest, const uint8_t* src, uint8_t path_len) {
-  writePath(dest, src, path_len);
+  if (writePath(dest, src, path_len) == 0 && (path_len & 63) != 0) {
+    return 0;   // Error: writePath failed for non-empty path
+  }
   return path_len;
 }
 
@@ -63,9 +65,11 @@ uint8_t Packet::writeTo(uint8_t dest[]) const {
 }
 
 bool Packet::readFrom(const uint8_t src[], uint8_t len) {
+  if (len < 2) return false;  // minimum: header + path_len
   uint8_t i = 0;
   header = src[i++];
   if (hasTransportCodes()) {
+    if (i + 4 >= len) return false;  // need 4 transport bytes + the path_len byte
     memcpy(&transport_codes[0], &src[i], 2); i += 2;
     memcpy(&transport_codes[1], &src[i], 2); i += 2;
   } else {
@@ -75,9 +79,8 @@ bool Packet::readFrom(const uint8_t src[], uint8_t len) {
   if (!isValidPathLen(path_len)) return false;   // bad encoding
 
   uint8_t bl = getPathByteLen();
+  if (i + bl >= len) return false;  // path + at least 1 byte payload must fit
   memcpy(path, &src[i], bl); i += bl;
-
-  if (i >= len) return false;   // bad encoding
   payload_len = len - i;
   if (payload_len > sizeof(payload)) return false;  // bad encoding
   memcpy(payload, &src[i], payload_len); //i += payload_len;

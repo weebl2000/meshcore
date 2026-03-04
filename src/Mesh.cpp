@@ -40,7 +40,7 @@ int Mesh::searchChannelsByHash(const uint8_t* hash, GroupChannel channels[], int
 
 DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
   if (pkt->isRouteDirect() && pkt->getPayloadType() == PAYLOAD_TYPE_TRACE) {
-    if (pkt->path_len < MAX_PATH_SIZE) {
+    if (pkt->path_len + 1 < MAX_PATH_SIZE && pkt->payload_len >= 9) {  // need trace_tag(4) + auth_code(4) + flags(1)
       uint8_t i = 0;
       uint32_t trace_tag;
       memcpy(&trace_tag, &pkt->payload[i], 4); i += 4;
@@ -51,9 +51,10 @@ DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
 
       uint8_t len = pkt->payload_len - i;
       uint8_t offset = pkt->path_len << path_sz;
+      uint8_t hash_sz = 1 << path_sz;
       if (offset >= len) {   // TRACE has reached end of given path
         onTraceRecv(pkt, trace_tag, auth_code, flags, pkt->path, &pkt->payload[i], len);
-      } else if (self_id.isHashMatch(&pkt->payload[i + offset], 1 << path_sz) && allowPacketForward(pkt) && !_tables->hasSeen(pkt)) {
+      } else if (offset + hash_sz <= len && self_id.isHashMatch(&pkt->payload[i + offset], hash_sz) && allowPacketForward(pkt) && !_tables->hasSeen(pkt)) {
         // append SNR (Not hash!)
         pkt->path[pkt->path_len++] = (int8_t) (pkt->getSNR()*4);
 
@@ -155,6 +156,14 @@ DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
                 uint8_t path_len = data[k++];
                 uint8_t hash_size = (path_len >> 6) + 1;
                 uint8_t hash_count = path_len & 63;
+                if (hash_size*hash_count > MAX_PATH_SIZE) {
+                  MESH_DEBUG_PRINTLN("%s Mesh::onRecvPacket(): bad PATH path_len=%d exceeds MAX_PATH_SIZE", getLogDateTime(), (int)path_len);
+                  break;
+                }
+                if (k + hash_size*hash_count + 1 > len) {  // bounds check: need path bytes + extra_type byte
+                  MESH_DEBUG_PRINTLN("%s Mesh::onRecvPacket(): bad PATH payload format, path_len=%d len=%d", getLogDateTime(), (int)path_len, (int)len);
+                  break;
+                }
                 uint8_t* path = &data[k]; k += hash_size*hash_count;
                 uint8_t extra_type = data[k++] & 0x0F;   // upper 4 bits reserved for future use
                 uint8_t* extra = &data[k];
@@ -238,6 +247,12 @@ DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
     }
     case PAYLOAD_TYPE_ADVERT: {
       int i = 0;
+      int min_advert_len = PUB_KEY_SIZE + 4 + SIGNATURE_SIZE;
+      if (pkt->payload_len < min_advert_len) {
+        MESH_DEBUG_PRINTLN("%s Mesh::onRecvPacket(): incomplete advertisement packet, payload_len=%d", getLogDateTime(), (int)pkt->payload_len);
+        break;
+      }
+
       Identity id;
       memcpy(id.pub_key, &pkt->payload[i], PUB_KEY_SIZE); i += PUB_KEY_SIZE;
 
@@ -245,9 +260,7 @@ DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
       memcpy(&timestamp, &pkt->payload[i], 4); i += 4;
       const uint8_t* signature = &pkt->payload[i]; i += SIGNATURE_SIZE;
 
-      if (i > pkt->payload_len) {
-        MESH_DEBUG_PRINTLN("%s Mesh::onRecvPacket(): incomplete advertisement packet", getLogDateTime());
-      } else if (self_id.matches(id.pub_key)) {
+      if (self_id.matches(id.pub_key)) {
         MESH_DEBUG_PRINTLN("%s Mesh::onRecvPacket(): receiving SELF advert packet", getLogDateTime());
       } else if (!_tables->hasSeen(pkt)) {
         uint8_t* app_data = &pkt->payload[i];
@@ -683,12 +696,20 @@ void Mesh::sendDirect(Packet* packet, const uint8_t* path, uint8_t path_len, uin
   uint8_t pri;
   if (packet->getPayloadType() == PAYLOAD_TYPE_TRACE) {   // TRACE packets are different
     // for TRACE packets, path is appended to end of PAYLOAD. (path is used for SNR's)
+    if (packet->payload_len + path_len > sizeof(packet->payload)) {
+      _mgr->free(packet);
+      return;
+    }
     memcpy(&packet->payload[packet->payload_len], path, path_len);  // NOTE: path_len here can be > 64, and NOT in the new scheme
     packet->payload_len += path_len;
 
     packet->path_len = 0;
     pri = 5;   // maybe make this configurable
   } else {
+    if (path_len > MAX_PATH_SIZE) {
+      _mgr->free(packet);
+      return;
+    }
     packet->path_len = Packet::copyPath(packet->path, path, path_len);
     if (packet->getPayloadType() == PAYLOAD_TYPE_PATH) {
       pri = 1;   // slightly less priority
