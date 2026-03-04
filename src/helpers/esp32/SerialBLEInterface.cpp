@@ -146,6 +146,7 @@ void SerialBLEInterface::enable() {
   //pServer->getAdvertising()->setMaxInterval(1000);
 
   pServer->getAdvertising()->start();
+  BLEDevice::setPower(ESP_PWR_LVL_P9);
   adv_restart_time = 0;
 }
 
@@ -244,6 +245,7 @@ size_t SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
     if (pServer->getConnectedCount() == 0) {
       BLE_DEBUG_PRINTLN("SerialBLEInterface -> re-starting advertising");
       pServer->getAdvertising()->start();  // re-Start advertising
+      BLEDevice::setPower(ESP_PWR_LVL_P9);
     }
     adv_restart_time = 0;
   }
