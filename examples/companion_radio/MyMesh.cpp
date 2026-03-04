@@ -914,7 +914,7 @@ void MyMesh::begin(bool has_display) {
   _store->loadNonces(this);
   bool dirty_reset = wasDirtyReset(board);
   finalizeNonceLoad(dirty_reset);
-  // if (dirty_reset) saveNonces();  // persist bumped nonces immediately  // DISABLED: testing T1000-E boot hang
+  if (dirty_reset) saveNonces();  // persist bumped nonces immediately
   next_nonce_persist = futureMillis(60000);
 
   _store->loadSessionKeys(this);

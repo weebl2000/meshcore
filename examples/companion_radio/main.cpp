@@ -150,7 +150,9 @@ void setup() {
     }
   #else
   #if defined(EXTRAFS)
-      ExtraFS.begin();
+      if (!ExtraFS.begin()) {
+        MESH_DEBUG_PRINTLN("ExtraFS: failed to initialize");
+      }
   #endif
   #endif
   store.begin();
