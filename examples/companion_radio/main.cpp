@@ -108,7 +108,21 @@ void halt() {
 void setup() {
   Serial.begin(115200);
 
+#ifdef T1000_E
+  // Diagnostic: countdown to let USB serial enumerate and connect
+  for (int i = 15; i > 0; i--) {
+    Serial.print("T1000-E boot in ");
+    Serial.println(i);
+    delay(1000);
+  }
+  Serial.println("=== T1000-E boot debug ===");
+  Serial.print("Reset reason: 0x");
+  Serial.println(NRF_POWER->RESETREAS, HEX);
+#endif
+
+  Serial.println("board.begin()...");
   board.begin();
+  Serial.println("board.begin() OK");
 
 #ifdef DISPLAY_CLASS
   DisplayDriver* disp = NULL;
@@ -123,12 +137,19 @@ void setup() {
   }
 #endif
 
-  if (!radio_init()) { halt(); }
+  Serial.println("radio_init()...");
+  if (!radio_init()) {
+    Serial.println("radio_init() FAILED - halting");
+    halt();
+  }
+  Serial.println("radio_init() OK");
 
   fast_rng.begin(radio_get_rng_seed());
 
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+  Serial.println("InternalFS.begin()...");
   InternalFS.begin();
+  Serial.println("InternalFS.begin() OK");
   #if defined(QSPIFLASH)
     if (!QSPIFlash.begin()) {
       // debug output might not be available at this point, might be too early. maybe should fall back to InternalFS here?
@@ -141,7 +162,11 @@ void setup() {
       ExtraFS.begin();
   #endif
   #endif
+  Serial.println("store.begin()...");
   store.begin();
+  Serial.println("store.begin() OK");
+
+  Serial.println("the_mesh.begin()...");
   the_mesh.begin(
     #ifdef DISPLAY_CLASS
         disp != NULL
@@ -149,8 +174,10 @@ void setup() {
         false
     #endif
   );
+  Serial.println("the_mesh.begin() OK");
 
 #ifdef BLE_PIN_CODE
+  Serial.println("BLE serial_interface.begin()...");
   serial_interface.begin(BLE_NAME_PREFIX, the_mesh.getNodePrefs()->node_name, the_mesh.getBLEPin());
 #else
   serial_interface.begin(Serial);

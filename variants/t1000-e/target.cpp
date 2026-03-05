@@ -45,22 +45,32 @@ static const Module::RfSwitchMode_t rfswitch_table[] = {
 
 bool radio_init() {
   //rtc_clock.begin(Wire);
-  
+
 #ifdef LR11X0_DIO3_TCXO_VOLTAGE
   float tcxo = LR11X0_DIO3_TCXO_VOLTAGE;
 #else
   float tcxo = 1.6f;
 #endif
 
+  Serial.println("  SPI.begin()...");
   SPI.setPins(P_LORA_MISO, P_LORA_SCLK, P_LORA_MOSI);
   SPI.begin();
+  Serial.println("  SPI.begin() OK");
+
+  Serial.print("  BUSY pin state: ");
+  Serial.println(digitalRead(P_LORA_BUSY));
+
+  Serial.println("  radio.begin()...");
+  Serial.flush();
   int status = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, RADIOLIB_LR11X0_LORA_SYNC_WORD_PRIVATE, LORA_TX_POWER, 16, tcxo);
+  Serial.print("  radio.begin() status: ");
+  Serial.println(status);
   if (status != RADIOLIB_ERR_NONE) {
     Serial.print("ERROR: radio init failed: ");
     Serial.println(status);
     return false;  // fail
   }
-  
+
   radio.setCRC(2);
   radio.explicitHeader();
 
