@@ -37,7 +37,9 @@
 #define SESSION_KEY_TIMEOUT_MS      180000 // 3 minutes per attempt
 #define SESSION_KEY_MAX_RETRIES     3      // attempts per negotiation round
 #define MAX_SESSION_KEYS_RAM        8      // max concurrent session key entries in RAM (LRU cache)
-#define MAX_SESSION_KEYS_FLASH     48     // max entries in flash file
+#ifndef MAX_SESSION_KEYS_FLASH
+  #define MAX_SESSION_KEYS_FLASH     48     // max entries in flash file
+#endif
 #define SESSION_KEY_RECORD_SIZE    71     // max bytes per record (with prev_key)
 #define SESSION_KEY_RECORD_MIN_SIZE 39   // min bytes per record: [pub_prefix:4][flags:1][nonce:2][key:32]
 #define SESSION_FLAG_PREV_VALID   0x01   // prev_session_key is valid for dual-decode
