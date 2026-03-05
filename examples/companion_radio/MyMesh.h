@@ -203,14 +203,28 @@ private:
   void saveContacts() { _store->saveContacts(this); }
   void saveNonces() { if (_store->saveNonces(this)) clearNonceDirty(); }
   void saveSessionKeys() { if (_store->saveSessionKeys(this)) { clearSessionKeysDirty(); clearSessionKeysRemoved(); } }
-  void onSessionKeysUpdated() override { saveSessionKeys(); }
+  void onSessionKeysUpdated() override {
+    unsigned long _t0 = millis();
+    saveSessionKeys();
+    unsigned long _dt = millis() - _t0;
+    if (_dt > 50) Serial.printf("[FLASH] onSessionKeysUpdated: %lu ms\n", _dt);
+  }
 
   // Flash-backed session key overrides
   bool loadSessionKeyRecordFromFlash(const uint8_t* pub_key_prefix,
       uint8_t* flags, uint16_t* nonce, uint8_t* session_key, uint8_t* prev_session_key) override {
-    return _store->loadSessionKeyByPrefix(pub_key_prefix, flags, nonce, session_key, prev_session_key);
+    unsigned long _t0 = millis();
+    bool result = _store->loadSessionKeyByPrefix(pub_key_prefix, flags, nonce, session_key, prev_session_key);
+    unsigned long _dt = millis() - _t0;
+    if (_dt > 20) Serial.printf("[FLASH] loadSessionKeyFromFlash: %lu ms (found=%d)\n", _dt, result);
+    return result;
   }
-  void mergeAndSaveSessionKeys() override { saveSessionKeys(); }
+  void mergeAndSaveSessionKeys() override {
+    unsigned long _t0 = millis();
+    saveSessionKeys();
+    unsigned long _dt = millis() - _t0;
+    if (_dt > 50) Serial.printf("[FLASH] mergeAndSaveSessionKeys: %lu ms\n", _dt);
+  }
 
   DataStore* _store;
   NodePrefs _prefs;

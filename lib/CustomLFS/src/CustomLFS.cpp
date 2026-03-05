@@ -24,6 +24,7 @@
  */
 
 #include "CustomLFS.h"
+#include <Arduino.h>
 
 // Global instance for backward compatibility
 CustomLFS CustomFS;
@@ -42,13 +43,19 @@ int CustomLFS::_flash_read(const struct lfs_config *c, lfs_block_t block,
   return 0;
 }
 
-int CustomLFS::_flash_prog(const struct lfs_config *c, lfs_block_t block, 
+int CustomLFS::_flash_prog(const struct lfs_config *c, lfs_block_t block,
                            lfs_off_t off, const void *buffer, lfs_size_t size)
 {
   CustomLFS* fs = (CustomLFS*)c->context;
   uint32_t addr = fs->lba2addr(block) + off;
-  
+
+  unsigned long _t0 = millis();
   VERIFY(flash_nrf5x_write(addr, buffer, size), -1);
+  unsigned long _dt = millis() - _t0;
+  if (_dt > 50) {
+    Serial.printf("[FLASH] prog blk %lu +%lu (%lu bytes): %lu ms\n",
+      (unsigned long)block, (unsigned long)off, (unsigned long)size, _dt);
+  }
   return 0;
 }
 
@@ -75,10 +82,17 @@ int CustomLFS::_flash_erase(const struct lfs_config *c, lfs_block_t block)
   memset(&page_buf[offset], 0xFF, fs->_block_size);
 
   // Erase entire 4KB page, then write preserved data back
+  unsigned long _t0 = millis();
   VERIFY(flash_nrf5x_erase(page_addr), -1);
   flash_nrf5x_flush();
+  unsigned long _t1 = millis();
   VERIFY(flash_nrf5x_write(page_addr, page_buf, FLASH_NRF52_PAGE_SIZE) > 0, -1);
   flash_nrf5x_flush();
+  unsigned long _t2 = millis();
+  if ((_t2 - _t0) > 100) {
+    Serial.printf("[FLASH] erase blk %lu page 0x%lX: erase=%lums write=%lums\n",
+      (unsigned long)block, (unsigned long)page_addr, _t1 - _t0, _t2 - _t1);
+  }
 
   return 0;
 }
@@ -86,7 +100,12 @@ int CustomLFS::_flash_erase(const struct lfs_config *c, lfs_block_t block)
 int CustomLFS::_flash_sync(const struct lfs_config *c)
 {
   (void) c;
+  unsigned long _t0 = millis();
   flash_nrf5x_flush();
+  unsigned long _dt = millis() - _t0;
+  if (_dt > 50) {
+    Serial.printf("[FLASH] sync: %lu ms\n", _dt);
+  }
   return 0;
 }
 

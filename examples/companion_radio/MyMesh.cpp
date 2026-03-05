@@ -914,10 +914,18 @@ void MyMesh::begin(bool has_display) {
   _store->loadNonces(this);
   bool dirty_reset = wasDirtyReset(board);
   finalizeNonceLoad(dirty_reset);
-  if (dirty_reset) saveNonces();  // persist bumped nonces immediately
+  if (dirty_reset) {
+    unsigned long _t0 = millis();
+    saveNonces();  // persist bumped nonces immediately
+    Serial.printf("[FLASH] boot saveNonces (dirty_reset): %lu ms\n", millis() - _t0);
+  }
   next_nonce_persist = futureMillis(60000);
 
-  _store->loadSessionKeys(this);
+  {
+    unsigned long _t0 = millis();
+    _store->loadSessionKeys(this);
+    Serial.printf("[FLASH] loadSessionKeys: %lu ms\n", millis() - _t0);
+  }
 
   addChannel("Public", PUBLIC_GROUP_PSK); // pre-configure Andy's public channel
   _store->loadChannels(this);
@@ -2090,17 +2098,26 @@ void MyMesh::loop() {
 
   // is there are pending dirty contacts write needed?
   if (dirty_contacts_expiry && millisHasNowPassed(dirty_contacts_expiry)) {
+    unsigned long _t0 = millis();
     saveContacts();
+    unsigned long _dt = millis() - _t0;
+    if (_dt > 50) Serial.printf("[FLASH] saveContacts: %lu ms\n", _dt);
     dirty_contacts_expiry = 0;
   }
 
   // periodic AEAD nonce and session key persistence
   if (next_nonce_persist && millisHasNowPassed(next_nonce_persist)) {
     if (isNonceDirty()) {
+      unsigned long _t0 = millis();
       saveNonces();
+      unsigned long _dt = millis() - _t0;
+      if (_dt > 50) Serial.printf("[FLASH] saveNonces: %lu ms\n", _dt);
     }
     if (isSessionKeysDirty()) {
+      unsigned long _t0 = millis();
       saveSessionKeys();
+      unsigned long _dt = millis() - _t0;
+      if (_dt > 50) Serial.printf("[FLASH] saveSessionKeys: %lu ms\n", _dt);
     }
     next_nonce_persist = futureMillis(60000);
   }

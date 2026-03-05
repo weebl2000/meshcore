@@ -242,6 +242,9 @@ void BaseChatMesh::onAdvertRecv(mesh::Packet* packet, const mesh::Identity& id, 
     from->last_advert_timestamp = timestamp;
     from->lastmod = getRTCClock()->getCurrentTime();
     if (parser.getFeat1() & FEAT1_AEAD_SUPPORT) {
+      if (!(from->flags & CONTACT_FLAG_AEAD)) {
+        MESH_DEBUG_PRINTLN("[AEAD] peer %s now AEAD-capable", from->name);
+      }
       from->flags |= CONTACT_FLAG_AEAD;
     } else {
       from->flags &= ~CONTACT_FLAG_AEAD;
