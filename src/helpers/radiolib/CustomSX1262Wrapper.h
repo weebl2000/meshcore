@@ -4,6 +4,10 @@
 #include "RadioLibWrappers.h"
 #include "SX126xReset.h"
 
+#ifndef USE_SX1262
+#define USE_SX1262
+#endif
+
 class CustomSX1262Wrapper : public RadioLibWrapper {
 public:
   CustomSX1262Wrapper(CustomSX1262& radio, mesh::MainBoard& board) : RadioLibWrapper(radio, board) { }

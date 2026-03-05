@@ -53,6 +53,8 @@ struct NodePrefs { // persisted to file
   float adc_multiplier;
   char owner_info[120];
   uint8_t path_hash_mode;   // which path mode to use when sending
+  // Power settings
+  uint8_t sx126x_rx_boosted_gain;
 };
 
 class CommonCLICallbacks {
@@ -86,6 +88,10 @@ public:
   };
 
   virtual void restartBridge() {
+    // no op by default
+  };
+
+  virtual void setRxBoostedGain(bool enable) {
     // no op by default
   };
 };
