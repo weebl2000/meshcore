@@ -1,5 +1,6 @@
 #include "MyMesh.h"
 #include <algorithm>
+#include <climits>
 
 /* ------------------------------ Config -------------------------------- */
 
@@ -85,6 +86,42 @@ void MyMesh::putNeighbour(const mesh::Identity &id, uint32_t timestamp, float sn
   neighbour->heard_timestamp = getRTCClock()->getCurrentTime();
   neighbour->snr = (int8_t)(snr * 4);
 #endif
+}
+
+int8_t MyMesh::findNeighbourSNR(const uint8_t* hash, uint8_t hash_size) {
+#if MAX_NEIGHBOURS
+  for (int i = 0; i < MAX_NEIGHBOURS; i++) {
+    if (neighbours[i].heard_timestamp != 0 && neighbours[i].id.isHashMatch(hash, hash_size)) {
+      return neighbours[i].snr;
+    }
+  }
+#endif
+  return INT8_MAX;
+}
+
+// Approximate SNR demod floor per SF (same as RadioLibWrappers.cpp)
+static float cr_snr_thresholds[] = {
+  -7.5f,  // SF7
+  -10.0f, // SF8
+  -12.5f, // SF9
+  -15.0f, // SF10
+  -17.5f, // SF11
+  -20.0f  // SF12
+};
+
+uint8_t MyMesh::selectCodingRateForPeer(const uint8_t* hash, uint8_t hash_size) {
+  int8_t snr4 = findNeighbourSNR(hash, hash_size);
+  if (snr4 == INT8_MAX) return 0;  // unknown neighbor, use default
+
+  float snr = snr4 / 4.0f;
+  float threshold = (_prefs.sf >= 7 && _prefs.sf <= 12)
+    ? cr_snr_thresholds[_prefs.sf - 7] : -15.0f;
+  float margin = snr - threshold;
+
+  if (margin < 3.0f)  return 8;
+  if (margin < 6.0f)  return 7;
+  if (margin < 10.0f) return 6;
+  return 5;  // good margin, use lightest CR
 }
 
 uint8_t MyMesh::handleLoginReq(const mesh::Identity& sender, const uint8_t* secret, uint32_t sender_timestamp, const uint8_t* data, bool is_flood) {
@@ -402,12 +439,43 @@ File MyMesh::openAppend(const char *fname) {
 #endif
 }
 
+static uint8_t max_loop_minimal[] =  { 0, /* 1-byte */  4, /* 2-byte */  2, /* 3-byte */  1 };
+static uint8_t max_loop_moderate[] = { 0, /* 1-byte */  2, /* 2-byte */  1, /* 3-byte */  1 };
+static uint8_t max_loop_strict[] =   { 0, /* 1-byte */  1, /* 2-byte */  1, /* 3-byte */  1 };
+
+bool MyMesh::isLooped(const mesh::Packet* packet, const uint8_t max_counters[]) {
+  uint8_t hash_size = packet->getPathHashSize();
+  uint8_t hash_count = packet->getPathHashCount();
+  uint8_t n = 0;
+  const uint8_t* path = packet->path;
+  while (hash_count > 0) {      // count how many times this node is already in the path
+    if (self_id.isHashMatch(path, hash_size)) n++;
+    hash_count--;
+    path += hash_size;
+  }
+  return n >= max_counters[hash_size];
+}
+
 bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
   if (_prefs.disable_fwd) return false;
   if (packet->isRouteFlood() && packet->getPathHashCount() >= _prefs.flood_max) return false;
   if (packet->isRouteFlood() && recv_pkt_region == NULL) {
     MESH_DEBUG_PRINTLN("allowPacketForward: unknown transport code, or wildcard not allowed for FLOOD packet");
     return false;
+  }
+  if (packet->isRouteFlood() && _prefs.loop_detect != LOOP_DETECT_OFF) {
+    const uint8_t* maximums;
+    if (_prefs.loop_detect == LOOP_DETECT_MINIMAL) {
+      maximums = max_loop_minimal;
+    } else if (_prefs.loop_detect == LOOP_DETECT_MODERATE) {
+      maximums = max_loop_moderate;
+    } else {
+      maximums = max_loop_strict;
+    }
+    if (isLooped(packet, maximums)) {
+      MESH_DEBUG_PRINTLN("allowPacketForward: FLOOD packet loop detected!");
+      return false;
+    }
   }
   return true;
 }
@@ -948,6 +1016,7 @@ void MyMesh::begin(FILESYSTEM *fs) {
 
   radio_set_params(_prefs.freq, _prefs.bw, _prefs.sf, _prefs.cr);
   radio_set_tx_power(_prefs.tx_power_dbm);
+  setDefaultCR(_prefs.cr);
 
   updateAdvertTimer();
   updateFloodAdvertTimer();

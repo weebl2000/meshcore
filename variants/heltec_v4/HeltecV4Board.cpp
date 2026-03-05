@@ -41,6 +41,7 @@ void HeltecV4Board::begin() {
     }
 
     periph_power.begin();
+
     if (reason == ESP_RST_DEEPSLEEP) {
       long wakeup_source = esp_sleep_get_ext1_wakeup_status();
       if (wakeup_source & (1 << P_LORA_DIO_1)) {
