@@ -62,36 +62,29 @@ int CustomLFS::_flash_prog(const struct lfs_config *c, lfs_block_t block,
 int CustomLFS::_flash_erase(const struct lfs_config *c, lfs_block_t block)
 {
   CustomLFS* fs = (CustomLFS*)c->context;
-  uint32_t block_addr = fs->lba2addr(block);
-  uint32_t page_addr = block_addr & ~(FLASH_NRF52_PAGE_SIZE - 1);
-  uint32_t offset = block_addr - page_addr;
+  uint32_t addr = fs->lba2addr(block);
 
-  static uint8_t page_buf[FLASH_NRF52_PAGE_SIZE];  // 4KB static buffer
-
-  // Read entire 4KB page
-  VERIFY(flash_nrf5x_read(page_buf, page_addr, FLASH_NRF52_PAGE_SIZE) > 0, -1);
-
-  // Check if block region is already erased
+  // Check if block region is already erased (read via cache)
+  uint32_t bs = fs->_block_size;
+  if (bs > FLASH_NRF52_PAGE_SIZE) return -1;
+  static uint8_t check_buf[FLASH_NRF52_PAGE_SIZE];
+  VERIFY(flash_nrf5x_read(check_buf, addr, bs) > 0, -1);
   bool clean = true;
-  for (uint32_t i = 0; i < fs->_block_size; i++) {
-    if (page_buf[offset + i] != 0xFF) { clean = false; break; }
+  for (uint32_t i = 0; i < bs; i++) {
+    if (check_buf[i] != 0xFF) { clean = false; break; }
   }
   if (clean) return 0;
 
-  // Set block region to 0xFF in buffer
-  memset(&page_buf[offset], 0xFF, fs->_block_size);
-
-  // Erase entire 4KB page, then write preserved data back
+  // Write 0xFF through the Adafruit cache layer instead of erasing directly.
+  // The cache batches multiple block erases within the same 4KB page into a
+  // single page erase+write during _flash_sync/flush, eliminating redundant
+  // page erases and reducing SoftDevice blocking time with BLE active.
+  memset(check_buf, 0xFF, bs);
   unsigned long _t0 = millis();
-  VERIFY(flash_nrf5x_erase(page_addr), -1);
-  flash_nrf5x_flush();
-  unsigned long _t1 = millis();
-  VERIFY(flash_nrf5x_write(page_addr, page_buf, FLASH_NRF52_PAGE_SIZE) > 0, -1);
-  flash_nrf5x_flush();
-  unsigned long _t2 = millis();
-  if ((_t2 - _t0) > 100) {
-    Serial.printf("[FLASH] erase blk %lu page 0x%lX: erase=%lums write=%lums\n",
-      (unsigned long)block, (unsigned long)page_addr, _t1 - _t0, _t2 - _t1);
+  VERIFY(flash_nrf5x_write(addr, check_buf, bs) > 0, -1);
+  unsigned long _dt = millis() - _t0;
+  if (_dt > 50) {
+    Serial.printf("[FLASH] erase blk %lu: %lu ms\n", (unsigned long)block, _dt);
   }
 
   return 0;
