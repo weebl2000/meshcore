@@ -11,6 +11,7 @@ protected:
   int16_t _noise_floor, _threshold;
   uint16_t _num_floor_samples;
   int32_t _floor_sample_sum;
+  uint8_t _preamble_sf;
 
   void idle();
   void startRecv();
@@ -19,7 +20,7 @@ protected:
   virtual void doResetAGC();
 
 public:
-  RadioLibWrapper(PhysicalLayer& radio, mesh::MainBoard& board) : _radio(&radio), _board(&board) { n_recv = n_sent = 0; }
+  RadioLibWrapper(PhysicalLayer& radio, mesh::MainBoard& board) : _radio(&radio), _board(&board), _preamble_sf(0) { n_recv = n_sent = 0; }
 
   void begin() override;
   virtual void powerOff() { _radio->sleep(); }
@@ -39,6 +40,7 @@ public:
 
   virtual float getCurrentRSSI() =0;
   virtual int16_t performChannelScan();
+  virtual uint8_t getSpreadingFactor() const { return LORA_SF; }
 
   int getNoiseFloor() const override { return _noise_floor; }
   void triggerNoiseFloorCalibrate(int threshold) override;
