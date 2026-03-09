@@ -1,6 +1,10 @@
 #if defined(NRF52_PLATFORM)
 #include "NRF52Board.h"
 
+// Single definitions for noinit backup variables (declared extern in NRF52Board.h)
+uint32_t _noinit_backup_time __attribute__((section(".noinit")));
+uint32_t _noinit_backup_magic __attribute__((section(".noinit")));
+
 #include <bluefruit.h>
 #include <nrf_soc.h>
 
@@ -300,7 +304,7 @@ void NRF52Board::sleep(uint32_t secs) {
 float NRF52Board::getMCUTemperature() {
   NRF_TEMP->TASKS_START = 1; // Start temperature measurement
 
-  long startTime = millis();  
+  unsigned long startTime = millis();  
   while (NRF_TEMP->EVENTS_DATARDY == 0) { // Wait for completion. Should complete in 50us
     if(millis() - startTime > 5) {  // To wait 5ms just in case
       NRF_TEMP->TASKS_STOP = 1;
