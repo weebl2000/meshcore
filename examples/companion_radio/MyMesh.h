@@ -104,6 +104,7 @@ public:
 
 protected:
   float getAirtimeBudgetFactor() const override;
+  uint32_t estimateTxAirtimeFor(int len_bytes, uint8_t tx_cr=0) const override;
   int getInterferenceThreshold() const override;
   int calcRxDelay(float score, uint32_t air_time) const override;
   uint32_t getRetransmitDelay(const mesh::Packet *packet) override;
