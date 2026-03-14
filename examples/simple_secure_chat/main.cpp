@@ -584,6 +584,7 @@ void setup() {
 }
 
 void loop() {
+  board.loop();
   the_mesh.loop();
   rtc_clock.tick();
 }
