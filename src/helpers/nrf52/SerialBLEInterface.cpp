@@ -264,6 +264,7 @@ void SerialBLEInterface::enable() {
   clearBuffers();
   _last_health_check = millis();
 
+  Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.start(0);
 }
 
@@ -277,8 +278,9 @@ void SerialBLEInterface::disable() {
   _isEnabled = false;
   BLE_DEBUG_PRINTLN("SerialBLEInterface: disable");
 
-  disconnect();
+  Bluefruit.Advertising.restartOnDisconnect(false);
   Bluefruit.Advertising.stop();
+  disconnect();
   _last_health_check = 0;
 }
 
