@@ -219,6 +219,9 @@ void setup() {
 }
 
 void loop() {
+#ifdef ESP32
+  board.feedWatchdog();
+#endif
   the_mesh.loop();
   sensors.loop();
 #ifdef DISPLAY_CLASS

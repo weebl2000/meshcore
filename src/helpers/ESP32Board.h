@@ -9,6 +9,12 @@
 #include <sys/time.h>
 #include <Wire.h>
 #include "driver/rtc_io.h"
+#include <esp_task_wdt.h>
+#include <esp_idf_version.h>
+
+#ifndef ESP32_WDT_TIMEOUT_SECS
+#define ESP32_WDT_TIMEOUT_SECS 90
+#endif
 
 class ESP32Board : public mesh::MainBoard {
 protected:
@@ -42,6 +48,19 @@ public:
   #else
     Wire.begin();
   #endif
+
+    // Initialize Task Watchdog Timer to recover from hangs (e.g. I2C bus lockup)
+  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = ESP32_WDT_TIMEOUT_SECS * 1000,
+      .idle_core_mask = 0,
+      .trigger_panic = true
+    };
+    esp_task_wdt_init(&wdt_config);
+  #else
+    esp_task_wdt_init(ESP32_WDT_TIMEOUT_SECS, true);
+  #endif
+    esp_task_wdt_add(NULL);
   }
 
   // Temperature from ESP32 MCU
@@ -75,6 +94,10 @@ public:
     if (!inhibit_sleep) {
       enterLightSleep(secs);      // To wake up after "secs" seconds or when receiving a LoRa packet
     }
+  }
+
+  void feedWatchdog() {
+    esp_task_wdt_reset();
   }
 
   uint8_t getStartupReason() const override { return startup_reason; }

@@ -117,6 +117,9 @@ void setup() {
 }
 
 void loop() {
+#ifdef ESP32
+  board.feedWatchdog();
+#endif
   int len = strlen(command);
   while (Serial.available() && len < sizeof(command)-1) {
     char c = Serial.read();
