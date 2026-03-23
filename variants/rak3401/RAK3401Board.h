@@ -38,6 +38,6 @@ public:
     return "RAK 3401";
   }
 
-  // TX/RX switching is handled by SX1262 DIO2 -> SKY66122 CTX (hardware-timed).
-  // No onBeforeTransmit/onAfterTransmit overrides needed.
+  // TX/RX switching handled by DIO2 (hardware-timed) + P0.31 TXEN (GPIO backup),
+  // both via RadioLib — no onBeforeTransmit/onAfterTransmit overrides needed.
 };
