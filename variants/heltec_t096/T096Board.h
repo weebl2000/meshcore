@@ -1,23 +1,28 @@
 #pragma once
 
+#include <MeshCore.h>
 #include <Arduino.h>
+#include <helpers/NRF52Board.h>
 #include <helpers/RefCountedDigitalPin.h>
-#include <helpers/ESP32Board.h>
-#include <driver/rtc_io.h>
 #include "LoRaFEMControl.h"
-class HeltecV4Board : public ESP32Board {
+
+class T096Board : public NRF52BoardDCDC {
+protected:
+#ifdef NRF52_POWER_MANAGEMENT
+  void initiateShutdown(uint8_t reason) override;
+#endif
+  void variant_shutdown();
 
 public:
   RefCountedDigitalPin periph_power;
   LoRaFEMControl loRaFEMControl;
-  HeltecV4Board() : periph_power(PIN_VEXT_EN,PIN_VEXT_EN_ACTIVE) { }
 
+  T096Board() :periph_power(PIN_VEXT_EN,PIN_VEXT_EN_ACTIVE), NRF52Board("T096_OTA") {}
   void begin();
+
   void onBeforeTransmit(void) override;
   void onAfterTransmit(void) override;
-  void enterDeepSleep(uint32_t secs, int pin_wake_btn = -1);
-  void powerOff() override;
   uint16_t getBattMilliVolts() override;
   const char* getManufacturerName() const override ;
-
+  void powerOff() override;
 };

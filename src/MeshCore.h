@@ -48,6 +48,7 @@
 #define SESSION_KEY_ABANDON_THRESHOLD 255 // sends without recv before clearing AEAD + session key
 
 #define MAX_PACKET_PAYLOAD  184
+#define MAX_GROUP_DATA_LENGTH  (MAX_PACKET_PAYLOAD - CIPHER_BLOCK_SIZE - 3)
 #define MAX_PATH_SIZE        64
 #define MAX_TRANS_UNIT      255
 
