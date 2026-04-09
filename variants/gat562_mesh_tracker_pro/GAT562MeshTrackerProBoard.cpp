@@ -10,7 +10,9 @@
 const PowerMgtConfig power_config = {
   .lpcomp_ain_channel = PWRMGT_LPCOMP_AIN,
   .lpcomp_refsel = PWRMGT_LPCOMP_REFSEL,
-  .voltage_bootlock = PWRMGT_VOLTAGE_BOOTLOCK
+  .voltage_bootlock = PWRMGT_VOLTAGE_BOOTLOCK,
+  .voltage_runtime = PWRMGT_VOLTAGE_BOOTLOCK - 200,
+  .wdt_timeout_ms = 60000
 };
 
 
@@ -53,5 +55,5 @@ void GAT562MeshTrackerProBoard::begin() {
   checkBootVoltage(&power_config);
 #endif
   digitalWrite(SX126X_POWER_EN, HIGH);
-  delay(10);   // give sx1268 some time to power up
+  delay(10);   // give sx1262 some time to power up
 }
