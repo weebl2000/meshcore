@@ -22,6 +22,7 @@
 #include <helpers/CommonCLI.h>
 #include <helpers/StatsFormatHelper.h>
 #include <helpers/ClientACL.h>
+#include <helpers/RegionMap.h>
 #include <RTClib.h>
 #include <target.h>
 
@@ -150,6 +151,9 @@ private:
   unsigned long dirty_contacts_expiry;
   unsigned long next_nonce_persist;
   CayenneLPP telemetry;
+  TransportKeyStore key_store;
+  RegionMap region_map;
+  TransportKey default_scope;
   uint32_t last_read_time;
   int matching_peer_indexes[MAX_SEARCH_RESULTS];
   int num_alert_tasks;
