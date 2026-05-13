@@ -42,6 +42,14 @@ void RadioLibWrapper::begin() {
   _floor_sample_sum = 0;
 }
 
+uint32_t RadioLibWrapper::getRngSeed() {
+  return _radio->random(0x7FFFFFFF);
+}
+
+void RadioLibWrapper::setTxPower(int8_t dbm) {
+  _radio->setOutputPower(dbm);
+}
+
 void RadioLibWrapper::idle() {
   _radio->standby();
   state = STATE_IDLE;   // need another startReceive()

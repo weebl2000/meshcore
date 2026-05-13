@@ -8,6 +8,15 @@
 class CustomSTM32WLxWrapper : public RadioLibWrapper {
 public:
   CustomSTM32WLxWrapper(CustomSTM32WLx& radio, mesh::MainBoard& board) : RadioLibWrapper(radio, board) { }
+
+  void setParams(float freq, float bw, uint8_t sf, uint8_t cr) override {
+    ((CustomSTM32WLx *)_radio)->setFrequency(freq);
+    ((CustomSTM32WLx *)_radio)->setSpreadingFactor(sf);
+    ((CustomSTM32WLx *)_radio)->setBandwidth(bw);
+    ((CustomSTM32WLx *)_radio)->setCodingRate(cr);
+    updatePreamble(sf);
+  }
+
   bool isReceivingPacket() override { 
     return ((CustomSTM32WLx *)_radio)->isReceiving();
   }
