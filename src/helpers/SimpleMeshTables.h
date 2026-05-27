@@ -6,22 +6,17 @@
   #include <FS.h>
 #endif
 
-#define MAX_PACKET_HASHES  128
-#define MAX_PACKET_ACKS     64
+#define MAX_PACKET_HASHES  (128+32)
 
 class SimpleMeshTables : public mesh::MeshTables {
   uint8_t _hashes[MAX_PACKET_HASHES*MAX_HASH_SIZE];
   uint32_t _last_seen[MAX_PACKET_HASHES];  // timestamp for LRU eviction
-  uint32_t _acks[MAX_PACKET_ACKS];
-  int _next_ack_idx;
   uint32_t _direct_dups, _flood_dups;
 
 public:
   SimpleMeshTables() {
     memset(_hashes, 0, sizeof(_hashes));
     memset(_last_seen, 0, sizeof(_last_seen));
-    memset(_acks, 0, sizeof(_acks));
-    _next_ack_idx = 0;
     _direct_dups = _flood_dups = 0;
   }
 
@@ -29,9 +24,7 @@ public:
   void restoreFrom(File f) {
     f.read(_hashes, sizeof(_hashes));
     int dummy_idx;
-    f.read((uint8_t *) &dummy_idx, sizeof(dummy_idx));  // legacy, ignore
-    f.read((uint8_t *) &_acks[0], sizeof(_acks));
-    f.read((uint8_t *) &_next_ack_idx, sizeof(_next_ack_idx));
+    f.read((uint8_t *) &dummy_idx, sizeof(dummy_idx));  // legacy index slot, ignore
     // Treat restored hashes as just seen - give them fresh timestamps
     uint32_t now = millis();
     const uint8_t* sp = _hashes;
@@ -47,32 +40,11 @@ public:
   void saveTo(File f) {
     f.write(_hashes, sizeof(_hashes));
     int dummy_idx = 0;
-    f.write((const uint8_t *) &dummy_idx, sizeof(dummy_idx));  // legacy format
-    f.write((const uint8_t *) &_acks[0], sizeof(_acks));
-    f.write((const uint8_t *) &_next_ack_idx, sizeof(_next_ack_idx));
+    f.write((const uint8_t *) &dummy_idx, sizeof(dummy_idx));  // legacy index slot
   }
 #endif
 
   bool hasSeen(const mesh::Packet* packet) override {
-    if (packet->getPayloadType() == PAYLOAD_TYPE_ACK) {
-      uint32_t ack;
-      memcpy(&ack, packet->payload, 4);
-      for (int i = 0; i < MAX_PACKET_ACKS; i++) {
-        if (ack == _acks[i]) {
-          if (packet->isRouteDirect()) {
-            _direct_dups++;   // keep some stats
-          } else {
-            _flood_dups++;
-          }
-          return true;
-        }
-      }
-
-      _acks[_next_ack_idx] = ack;
-      _next_ack_idx = (_next_ack_idx + 1) % MAX_PACKET_ACKS;  // cyclic table
-      return false;
-    }
-
     uint32_t now = millis();
     uint8_t hash[MAX_HASH_SIZE];
     packet->calculatePacketHash(hash);
@@ -110,26 +82,15 @@ public:
   }
 
   void clear(const mesh::Packet* packet) override {
-    if (packet->getPayloadType() == PAYLOAD_TYPE_ACK) {
-      uint32_t ack;
-      memcpy(&ack, packet->payload, 4);
-      for (int i = 0; i < MAX_PACKET_ACKS; i++) {
-        if (ack == _acks[i]) {
-          _acks[i] = 0;
-          break;
-        }
-      }
-    } else {
-      uint8_t hash[MAX_HASH_SIZE];
-      packet->calculatePacketHash(hash);
+    uint8_t hash[MAX_HASH_SIZE];
+    packet->calculatePacketHash(hash);
 
-      uint8_t* sp = _hashes;
-      for (int i = 0; i < MAX_PACKET_HASHES; i++, sp += MAX_HASH_SIZE) {
-        if (memcmp(hash, sp, MAX_HASH_SIZE) == 0) {
-          memset(sp, 0, MAX_HASH_SIZE);
-          _last_seen[i] = 0;
-          break;
-        }
+    uint8_t* sp = _hashes;
+    for (int i = 0; i < MAX_PACKET_HASHES; i++, sp += MAX_HASH_SIZE) {
+      if (memcmp(hash, sp, MAX_HASH_SIZE) == 0) {
+        memset(sp, 0, MAX_HASH_SIZE);
+        _last_seen[i] = 0;
+        break;
       }
     }
   }

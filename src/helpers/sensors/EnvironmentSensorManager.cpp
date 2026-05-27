@@ -29,7 +29,9 @@ static Adafruit_BMP085 BMP085;
 #endif
 
 #if ENV_INCLUDE_AHTX0
+#ifndef TELEM_AHTX_ADDRESS
 #define TELEM_AHTX_ADDRESS      0x38      // AHT10, AHT20 temperature and humidity sensor I2C address
+#endif
 #include <Adafruit_AHTX0.h>
 static Adafruit_AHTX0 AHTX0;
 #endif
@@ -58,7 +60,9 @@ static Adafruit_SHTC3 SHTC3;
 #endif
 
 #if ENV_INCLUDE_SHT4X
+#ifndef TELEM_SHT4X_ADDRESS
 #define TELEM_SHT4X_ADDRESS 0x44
+#endif
 #include <SensirionI2cSht4x.h>
 static SensirionI2cSht4x SHT4X;
 #endif
@@ -83,19 +87,25 @@ static Adafruit_INA3221 INA3221;
 #endif
 
 #if ENV_INCLUDE_INA219
+#ifndef TELEM_INA219_ADDRESS
 #define TELEM_INA219_ADDRESS    0x40      // INA219 single channel current sensor I2C address
+#endif
 #include <Adafruit_INA219.h>
 static Adafruit_INA219 INA219(TELEM_INA219_ADDRESS);
 #endif
 
 #if ENV_INCLUDE_INA260
+#ifndef TELEM_INA260_ADDRESS
 #define TELEM_INA260_ADDRESS    0x41      // INA260 single channel current sensor I2C address
+#endif
 #include <Adafruit_INA260.h>
 static Adafruit_INA260 INA260;
 #endif
 
 #if ENV_INCLUDE_INA226
+#ifndef TELEM_INA226_ADDRESS
 #define TELEM_INA226_ADDRESS     0x44
+#endif
 #define TELEM_INA226_SHUNT_VALUE 0.100
 #define TELEM_INA226_MAX_AMP     0.8
 #include <INA226.h>
@@ -103,19 +113,25 @@ static INA226 INA226(TELEM_INA226_ADDRESS, TELEM_WIRE);
 #endif
 
 #if ENV_INCLUDE_MLX90614
+#ifndef TELEM_MLX90614_ADDRESS
 #define TELEM_MLX90614_ADDRESS 0x5A      // MLX90614 IR temperature sensor I2C address
+#endif
 #include <Adafruit_MLX90614.h>
 static Adafruit_MLX90614 MLX90614;
 #endif
 
 #if ENV_INCLUDE_VL53L0X
+#ifndef TELEM_VL53L0X_ADDRESS
 #define TELEM_VL53L0X_ADDRESS 0x29      // VL53L0X time-of-flight distance sensor I2C address
+#endif
 #include <Adafruit_VL53L0X.h>
 static Adafruit_VL53L0X VL53L0X;
 #endif
 
 #if ENV_INCLUDE_RAK12035
+#ifndef TELEM_RAK12035_ADDRESS
 #define TELEM_RAK12035_ADDRESS 0x20      // RAK12035 Soil Moisture sensor I2C address
+#endif
 #include "RAK12035_SoilMoisture.h"
 static RAK12035_SoilMoisture RAK12035;
 #endif
@@ -128,7 +144,9 @@ static RAK12035_SoilMoisture RAK12035;
 static uint32_t gpsResetPin = 0;
 static bool i2cGPSFlag = false;
 static bool serialGPSFlag = false;
+#ifndef TELEM_RAK12500_ADDRESS
 #define TELEM_RAK12500_ADDRESS   0x42     //RAK12500 Ublox GPS via i2c
+#endif
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h>
 static SFE_UBLOX_GNSS ublox_GNSS;
 

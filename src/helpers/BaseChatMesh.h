@@ -82,7 +82,7 @@ class BaseChatMesh : public mesh::Mesh {
   int _pending_rekey_idx;  // contact index needing session key negotiation, -1 = none
 
   mesh::Packet* composeMsgPacket(const ContactInfo& recipient, uint32_t timestamp, uint8_t attempt, const char *text, uint32_t& expected_ack);
-  void sendAckTo(const ContactInfo& dest, uint32_t ack_hash);
+  void sendAckTo(const ContactInfo& dest, const uint8_t* ack_hash, uint8_t ack_len=4);
 
 protected:
   BaseChatMesh(mesh::Radio& radio, mesh::MillisecondClock& ms, mesh::RNG& rng, mesh::RTCClock& rtc, mesh::PacketManager& mgr, mesh::MeshTables& tables)

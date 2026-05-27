@@ -119,6 +119,8 @@ void setup() {
   modem->setGetCurrentRssiCallback(onGetCurrentRssi);
   modem->setGetStatsCallback(onGetStats);
   modem->begin();
+
+  board.onBootComplete();
 }
 
 void loop() {

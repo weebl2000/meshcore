@@ -756,6 +756,47 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ---
 
+#### Define region hierarchy (single line)
+**Usage:**
+- `region def <token> [<token> ...]`
+
+**Parameters (tokens):** Space-separated. A logical **cursor** starts at the wildcard `*`.
+
+- **`name`** — Create `name` as a child of the current cursor (equivalent to `region put name` with the cursor as parent). Cursor moves to `name`.
+- **`name|jump`** *(or `name,jump`)* — Create `name` as a child of the current cursor, then move the cursor to `jump` (must already exist on the node, or have been created earlier in this command). `jump` is **not** the parent of `name`; use this form to pop back up and start another branch.
+
+**Behavior:** Each created region defaults to flood-allowed (same as `region put`). The reply is the resulting region tree (same format as bare `region`); review it before running `region save` to persist. On error, the reply is `Err - ...` and any regions placed before the failure remain on the node, just like a partial chain of `region put`.
+
+**Existing regions:** `region def` does not clear the existing tree — if a name already exists, its parent is updated to the current cursor; otherwise a new region is created. To start from scratch, `region remove` the unwanted regions first.
+
+**Limits:** Repeater serial accepts one line up to **160 characters**. For larger trees, split across multiple `region def` commands; the cursor resets to `*` between commands, so lead the next command with `child|ancestor` to reposition. Each token splits at most once on `|` — `region def a|b|c|d` is not a flat-list shorthand; see the flat-list example below.
+
+**Example — linear chain** (each token becomes a child of the previous):
+```
+region def a b c d e
+region save
+```
+
+**Example — branched tree** (equivalent to `region put a`, `region put b a`, `region put c b`, `region put d c`, `region put e b`, `region put f e`):
+```
+region def a b c d|b e f
+region save
+```
+
+**Example — error and partial state:**
+```
+region def a b c|nope d
+```
+The reply is `Err - unknown jump: nope`. `a`, `b`, and `c` were placed before the failure; `d` was not. Run `region` to inspect, then re-run with a corrected jump or repair with `region remove` / `region put`.
+
+**Example — flat list** (each region a child of `*`). Use `|*` after each token to pop the cursor back to the root before the next token:
+```
+region def a|* b|* c|* d|* e|* f
+region save
+```
+
+---
+
 #### Remove a region
 **Usage:** 
 - `region remove <name>`
