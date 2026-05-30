@@ -89,7 +89,10 @@ void setup() {
   board.onBootComplete();
 
 #if defined(NRF52_PLATFORM)
-  startMeshWorker(meshAppLoop);
+  if (!startMeshWorker(meshAppLoop)) {
+    MESH_DEBUG_PRINTLN("Failed to start mesh worker task!");
+    halt();
+  }
 #endif
 }
 
