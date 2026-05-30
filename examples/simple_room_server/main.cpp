@@ -5,7 +5,7 @@
 
 #if defined(NRF52_PLATFORM)
 #include <helpers/MeshWorkerTask.h>
-static void runMainLoop();   // forward decl: setup() references it before its definition
+static void meshAppLoop();   // forward decl: setup() passes it to startMeshWorker()
 #endif
 
 #ifdef DISPLAY_CLASS
@@ -89,15 +89,11 @@ void setup() {
   board.onBootComplete();
 
 #if defined(NRF52_PLATFORM)
-  startMeshWorker(runMainLoop);
+  startMeshWorker(meshAppLoop);
 #endif
 }
 
-#if defined(NRF52_PLATFORM)
-static void runMainLoop() {
-#else
-void loop() {
-#endif
+static void meshAppLoop() {
   board.loop();
 
   int len = strlen(command);
@@ -132,8 +128,10 @@ void loop() {
   rtc_clock.tick();
 }
 
-#if defined(NRF52_PLATFORM)
 void loop() {
-  vTaskDelay(pdMS_TO_TICKS(1000));   // app loop runs on the mesh worker task
-}
+#if defined(NRF52_PLATFORM)
+  vTaskDelay(pdMS_TO_TICKS(1000));   // app loop runs on the dedicated mesh worker task
+#else
+  meshAppLoop();
 #endif
+}
