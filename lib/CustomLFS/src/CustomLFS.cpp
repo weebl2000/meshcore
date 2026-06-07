@@ -24,7 +24,6 @@
  */
 
 #include "CustomLFS.h"
-#include <Arduino.h>
 
 // Global instance for backward compatibility
 CustomLFS CustomFS;
@@ -49,13 +48,7 @@ int CustomLFS::_flash_prog(const struct lfs_config *c, lfs_block_t block,
   CustomLFS* fs = (CustomLFS*)c->context;
   uint32_t addr = fs->lba2addr(block) + off;
 
-  unsigned long _t0 = millis();
   VERIFY(flash_nrf5x_write(addr, buffer, size), -1);
-  unsigned long _dt = millis() - _t0;
-  if (_dt > 50) {
-    Serial.printf("[FLASH] prog blk %lu +%lu (%lu bytes): %lu ms\n",
-      (unsigned long)block, (unsigned long)off, (unsigned long)size, _dt);
-  }
   return 0;
 }
 
@@ -80,12 +73,7 @@ int CustomLFS::_flash_erase(const struct lfs_config *c, lfs_block_t block)
   // single page erase+write during _flash_sync/flush, eliminating redundant
   // page erases and reducing SoftDevice blocking time with BLE active.
   memset(check_buf, 0xFF, bs);
-  unsigned long _t0 = millis();
   VERIFY(flash_nrf5x_write(addr, check_buf, bs) > 0, -1);
-  unsigned long _dt = millis() - _t0;
-  if (_dt > 50) {
-    Serial.printf("[FLASH] erase blk %lu: %lu ms\n", (unsigned long)block, _dt);
-  }
 
   return 0;
 }
@@ -93,12 +81,7 @@ int CustomLFS::_flash_erase(const struct lfs_config *c, lfs_block_t block)
 int CustomLFS::_flash_sync(const struct lfs_config *c)
 {
   (void) c;
-  unsigned long _t0 = millis();
   flash_nrf5x_flush();
-  unsigned long _dt = millis() - _t0;
-  if (_dt > 50) {
-    Serial.printf("[FLASH] sync: %lu ms\n", _dt);
-  }
   return 0;
 }
 
