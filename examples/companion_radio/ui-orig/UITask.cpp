@@ -342,6 +342,15 @@ void UITask::loop() {
 
       _next_refresh = millis() + 1000;   // refresh every second
     }
+#ifdef KEEP_DISPLAY_ON_USB
+    // Opt-in: refresh the auto-off deadline while externally powered, so the
+    // timer counts from the moment external power is removed. Off by default
+    // because OLED panels burn in quickly; only enable for LCD targets or
+    // where the display is replaceable.
+    if (board.isExternalPowered()) {
+      _auto_off = millis() + AUTO_OFF_MILLIS;
+    }
+#endif
     if (millis_passed(_auto_off)) {
       _display->turnOff();
     }

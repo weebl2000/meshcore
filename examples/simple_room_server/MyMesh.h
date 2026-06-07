@@ -27,11 +27,11 @@
 /* ------------------------------ Config -------------------------------- */
 
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE   "19 Apr 2026"
+  #define FIRMWARE_BUILD_DATE   "6 Jun 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION   "v1.15.0"
+  #define FIRMWARE_VERSION   "v1.16.0"
 #endif
 
 #ifndef LORA_FREQ
@@ -144,6 +144,9 @@ protected:
 
   int getInterferenceThreshold() const override {
     return _prefs.interference_threshold;
+  }
+  bool getCADEnabled() const override {
+    return _prefs.cad_enabled;
   }
   int getAGCResetInterval() const override {
     return ((int)_prefs.agc_reset_interval) * 4000;   // milliseconds

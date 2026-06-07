@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 #include <math.h>
 
 #define MAX_HASH_SIZE        8
@@ -20,7 +21,7 @@
 // AEAD-4 (ChaChaPoly) encryption
 #define AEAD_TAG_SIZE        4
 #define AEAD_NONCE_SIZE      2
-#define CONTACT_FLAG_AEAD    0x02   // bit 1 of ContactInfo.flags (bit 0 = favourite)
+#define CONTACT_FLAG_AEAD    0x80   // bit 7 of ContactInfo.flags (bit 0 = favourite, bits 1-3 = telemetry perms)
 #define FEAT1_AEAD_SUPPORT   0x0001 // bit 0 of feat1 uint16_t
 
 // AEAD nonce persistence
@@ -87,6 +88,7 @@ public:
   // Boards may override to stop a boot-indicator LED sequence or similar.
   // Default no-op: boards that don't care need not implement anything.
   virtual void onBootComplete() { /* no op */ }
+  virtual uint32_t getIRQGpio() { return -1; } // not supported. Returns DIO1 (SX1262) and DIO0 (SX127x)
   virtual void sleep(uint32_t secs)  { /* no op */ }
   virtual uint32_t getGpio() { return 0; }
   virtual void setGpio(uint32_t values) {}

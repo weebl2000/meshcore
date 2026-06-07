@@ -129,18 +129,25 @@ void BaseChatMesh::bootstrapRTCfromContacts() {
   }
 }
 
-ContactInfo* BaseChatMesh::allocateContactSlot() {
+ContactInfo* BaseChatMesh::allocateContactSlot(bool transient_only) {
   if (num_contacts < MAX_CONTACTS) {
     return &contacts[num_contacts++];
-  } else if (shouldOverwriteWhenFull()) {
+  } else if (transient_only || shouldOverwriteWhenFull()) {
     // Find oldest non-favourite contact by oldest lastmod timestamp
     int oldest_idx = -1;
     uint32_t oldest_lastmod = 0xFFFFFFFF;
     for (int i = 0; i < num_contacts; i++) {
-      bool is_favourite = (contacts[i].flags & 0x01) != 0;
-      if (!is_favourite && contacts[i].lastmod < oldest_lastmod) {
-        oldest_lastmod = contacts[i].lastmod;
-        oldest_idx = i;
+      if (transient_only) {
+        if (contacts[i].type == ADV_TYPE_NONE && contacts[i].lastmod < oldest_lastmod) {
+          oldest_lastmod = contacts[i].lastmod;
+          oldest_idx = i;
+        }
+      } else {
+        bool is_favourite = (contacts[i].flags & 0x01) != 0;
+        if (!is_favourite && contacts[i].lastmod < oldest_lastmod && contacts[i].type != ADV_TYPE_NONE) {
+          oldest_lastmod = contacts[i].lastmod;
+          oldest_idx = i;
+        }
       }
     }
     if (oldest_idx >= 0) {
@@ -231,24 +238,25 @@ void BaseChatMesh::onAdvertRecv(mesh::Packet* packet, const mesh::Identity& id, 
     from->sync_since = 0;
     from->shared_secret_valid = false;
   }
+
   // update
-    putBlobByKey(id.pub_key, PUB_KEY_SIZE, temp_buf, plen);
-    StrHelper::strncpy(from->name, parser.getName(), sizeof(from->name));
-    from->type = parser.getType();
-    if (parser.hasLatLon()) {
-      from->gps_lat = parser.getIntLat();
-      from->gps_lon = parser.getIntLon();
+  putBlobByKey(id.pub_key, PUB_KEY_SIZE, temp_buf, plen);
+  StrHelper::strncpy(from->name, parser.getName(), sizeof(from->name));
+  from->type = parser.getType();
+  if (parser.hasLatLon()) {
+    from->gps_lat = parser.getIntLat();
+    from->gps_lon = parser.getIntLon();
+  }
+  from->last_advert_timestamp = timestamp;
+  from->lastmod = getRTCClock()->getCurrentTime();
+  if (parser.getFeat1() & FEAT1_AEAD_SUPPORT) {
+    if (!(from->flags & CONTACT_FLAG_AEAD)) {
+      MESH_DEBUG_PRINTLN("[AEAD] peer %s now AEAD-capable", from->name);
     }
-    from->last_advert_timestamp = timestamp;
-    from->lastmod = getRTCClock()->getCurrentTime();
-    if (parser.getFeat1() & FEAT1_AEAD_SUPPORT) {
-      if (!(from->flags & CONTACT_FLAG_AEAD)) {
-        MESH_DEBUG_PRINTLN("[AEAD] peer %s now AEAD-capable", from->name);
-      }
-      from->flags |= CONTACT_FLAG_AEAD;
-    } else {
-      from->flags &= ~CONTACT_FLAG_AEAD;
-    }
+    from->flags |= CONTACT_FLAG_AEAD;
+  } else {
+    from->flags &= ~CONTACT_FLAG_AEAD;
+  }
 
   onDiscoveredContact(*from, is_new, packet->path_len, packet->path);       // let UI know
 }
@@ -958,7 +966,7 @@ ContactInfo* BaseChatMesh::lookupContactByPubKey(const uint8_t* pub_key, int pre
 }
 
 bool BaseChatMesh::addContact(const ContactInfo& contact) {
-  ContactInfo* dest = allocateContactSlot();
+  ContactInfo* dest = allocateContactSlot(contact.type == ADV_TYPE_NONE);
   if (dest) {
     int idx = dest - contacts;
     *dest = contact;
