@@ -205,6 +205,10 @@ DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
               if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH) {
                 int k = 0;
                 uint8_t path_len = data[k++];
+                if (!Packet::isValidPathLen(path_len)) {
+                  MESH_DEBUG_PRINTLN("%s PAYLOAD_TYPE_PATH, bad path_len: %u", getLogDateTime(), (uint32_t)path_len);
+                  break;   // reject bad encoding
+                }
                 uint8_t hash_size = (path_len >> 6) + 1;
                 uint8_t hash_count = path_len & 63;
                 if (hash_size*hash_count > MAX_PATH_SIZE) {
