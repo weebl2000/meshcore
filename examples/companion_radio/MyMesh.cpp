@@ -282,6 +282,9 @@ int MyMesh::getInterferenceThreshold() const {
 bool MyMesh::getCADEnabled() const {
   return true; // hardware CAD before TX (no CLI toggle on companion; enabled by default)
 }
+bool MyMesh::getCADEnabled() const {
+  return true; // hardware CAD before TX (no CLI toggle on companion; enabled by default)
+}
 
 int MyMesh::calcRxDelay(float score, uint32_t air_time) const {
   if (_prefs.rx_delay_base <= 0.0f) return 0;
