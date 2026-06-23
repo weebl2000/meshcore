@@ -179,6 +179,42 @@ public:
   void setInhibitSleep(bool inhibit) {
     inhibit_sleep = inhibit;
   }
+
+  uint32_t getResetReason() const override {
+    return esp_reset_reason();
+  }
+
+  // https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-reference/system/system.html
+  const char* getResetReasonString(uint32_t reason) {
+    switch (reason) {
+      case ESP_RST_UNKNOWN:
+        return "Unknown or first boot";
+      case ESP_RST_POWERON:
+        return "Power-on reset";
+      case ESP_RST_EXT:
+        return "External reset";
+      case ESP_RST_SW:
+        return "Software reset";
+      case ESP_RST_PANIC:
+        return "Panic / exception reset";
+      case ESP_RST_INT_WDT:
+        return "Interrupt watchdog reset";
+      case ESP_RST_TASK_WDT:
+        return "Task watchdog reset";
+      case ESP_RST_WDT:
+        return "Other watchdog reset";
+      case ESP_RST_DEEPSLEEP:
+        return "Wake from deep sleep";
+      case ESP_RST_BROWNOUT:
+        return "Brownout (low voltage)";
+      case ESP_RST_SDIO:
+        return "SDIO reset";
+      default:
+        static char buf[40];
+        snprintf(buf, sizeof(buf), "Unknown reset reason (%d)", reason);
+        return buf;
+    }
+  }
 };
 
 static RTC_NOINIT_ATTR uint32_t _rtc_backup_time;
