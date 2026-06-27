@@ -32,7 +32,7 @@ void ESPNowBridge::begin() {
   // Initialize WiFi in station mode
   WiFi.mode(WIFI_STA);
   
-  // Set wifi channel
+  // Set Wi-Fi channel
   if (esp_wifi_set_channel(_prefs->bridge_channel, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
     BRIDGE_DEBUG_PRINTLN("Error setting WIFI channel to %d\n", _prefs->bridge_channel);
     return;

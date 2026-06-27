@@ -119,7 +119,7 @@ protected:
    * \param  auth_code   a code to authenticate the packet
    * \param  flags       zero for now
    * \param  path_snrs   single byte SNR*4 for each hop in the path
-   * \param  path_hashes hashes if each repeater in the path
+   * \param  path_hashes hashes of each repeater in the path
    * \param  path_len    length of the path_snrs[] and path_hashes[] arrays
   */
   virtual void onTraceRecv(Packet* packet, uint32_t tag, uint32_t auth_code, uint8_t flags, const uint8_t* path_snrs, const uint8_t* path_hashes, uint8_t path_len) { }
