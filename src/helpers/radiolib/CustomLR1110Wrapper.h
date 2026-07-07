@@ -26,6 +26,11 @@ public:
     return rssi;
   }
 
+  uint32_t getEstAirtimeFor(int len_bytes) override {
+    auto airtime = RadioLibWrapper::getEstAirtimeFor(len_bytes);
+    return airtime < 200 ? 200 : airtime;   // at least 200 millis
+  }
+
   void onSendFinished() override {
     RadioLibWrapper::onSendFinished();
     _radio->setPreambleLength(preambleLengthForSF(getSpreadingFactor())); // overcomes weird issues with small and big pkts

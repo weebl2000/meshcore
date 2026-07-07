@@ -16,6 +16,7 @@
 #include "driver/gpio.h"
 #include "soc/rtc.h"
 #include "esp_system.h"
+#include <driver/rtc_io.h>
 
 class ESP32Board : public mesh::MainBoard {
 protected:
@@ -85,6 +86,9 @@ public:
     }
 #endif
   }
+
+  virtual void powerOff() override;
+  void enterDeepSleep(uint32_t secs);
 
   uint32_t getIRQGpio() override {
     return P_LORA_DIO_1; // default for SX1262
