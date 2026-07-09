@@ -13,6 +13,10 @@ protected:
   uint16_t _num_floor_samples;
   int32_t _floor_sample_sum;
   uint8_t _preamble_sf;
+  uint8_t _cad_peak_offset;
+  uint8_t _cad_probe_count, _cad_probe_hits;
+  uint8_t _cad_last_count, _cad_last_hits;
+  unsigned long _last_cad_probe;
 
   void idle();
   void startRecv();
@@ -48,6 +52,18 @@ public:
   static uint16_t preambleLengthForSF(uint8_t sf) { return sf <= 8 ? 32 : 16; }
   void updatePreamble(uint8_t sf) { _preamble_sf = sf; _radio->setPreambleLength(preambleLengthForSF(sf)); }
   virtual int16_t performChannelScan();
+  virtual uint8_t getCADDetPeakBase() const { return 0; }   // 0 = CAD detPeak tuning not supported
+
+  bool getCADCalibState(uint8_t& peak_offset, uint8_t& hits, uint8_t& count) const override {
+    if (getCADDetPeakBase() == 0) return false;
+    peak_offset = _cad_peak_offset;
+    if (_cad_last_count > 0) {
+      hits = _cad_last_hits; count = _cad_last_count;
+    } else {   // no probe window evaluated yet, report the one in progress
+      hits = _cad_probe_hits; count = _cad_probe_count;
+    }
+    return true;
+  }
 
   int getNoiseFloor() const override { return _noise_floor; }
   void triggerNoiseFloorCalibrate(int threshold) override;
