@@ -44,41 +44,46 @@ public:
   }
 #endif
 
-  bool hasSeen(const mesh::Packet* packet) override {
+  bool wasSeen(const mesh::Packet* packet) override {
     uint32_t now = millis();
     uint8_t hash[MAX_HASH_SIZE];
     packet->calculatePacketHash(hash);
 
-    int oldest_idx = 0;
-    uint32_t oldest_age = 0;
-
     const uint8_t* sp = _hashes;
     for (int i = 0; i < MAX_PACKET_HASHES; i++, sp += MAX_HASH_SIZE) {
-      uint32_t age = now - _last_seen[i];
-
       if (memcmp(hash, sp, MAX_HASH_SIZE) == 0 && _last_seen[i] != 0) {
         // Match found - refresh timestamp (LRU touch) and return true
         _last_seen[i] = now;
         if (packet->isRouteDirect()) {
-          _direct_dups++;   // keep some stats
+          _direct_dups++;
         } else {
           _flood_dups++;
         }
         return true;
       }
+    }
+    return false;
+  }
 
-      // Track oldest entry for LRU eviction
+  void markSeen(const mesh::Packet* packet) override {
+    uint32_t now = millis();
+    uint8_t hash[MAX_HASH_SIZE];
+    packet->calculatePacketHash(hash);
+
+    // Insert into oldest slot (LRU eviction). Empty slots have _last_seen == 0,
+    // hence maximal age, so they get filled before any real entry is evicted.
+    int oldest_idx = 0;
+    uint32_t oldest_age = 0;
+    const uint8_t* sp = _hashes;
+    for (int i = 0; i < MAX_PACKET_HASHES; i++, sp += MAX_HASH_SIZE) {
+      uint32_t age = now - _last_seen[i];
       if (age > oldest_age) {
         oldest_age = age;
         oldest_idx = i;
       }
     }
-
-    // Not found - evict oldest (LRU)
-    int insert_idx = oldest_idx;
-    memcpy(&_hashes[insert_idx*MAX_HASH_SIZE], hash, MAX_HASH_SIZE);
-    _last_seen[insert_idx] = now;
-    return false;
+    memcpy(&_hashes[oldest_idx*MAX_HASH_SIZE], hash, MAX_HASH_SIZE);
+    _last_seen[oldest_idx] = now;
   }
 
   void clear(const mesh::Packet* packet) override {

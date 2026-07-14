@@ -1,6 +1,7 @@
 #pragma once
 
 #include <RadioLib.h>
+#include "MeshCore.h"
 
 #define SX126X_IRQ_HEADER_VALID                0b0000010000  //  4     4     valid LoRa header received
 #define SX126X_IRQ_PREAMBLE_DETECTED           0x04
@@ -16,16 +17,29 @@ class CustomSX1262 : public SX1262 {
   #endif
     {
   #ifdef SX126X_DIO3_TCXO_VOLTAGE
-      float tcxo = SX126X_DIO3_TCXO_VOLTAGE;
+      tcxoVoltage = SX126X_DIO3_TCXO_VOLTAGE;
   #else
-      float tcxo = 1.6f;
+      tcxoVoltage = 1.6f;
   #endif
 
-  #ifdef LORA_CR
-      uint8_t cr = LORA_CR;
-  #else
-      uint8_t cr = 5;
+  #ifdef SX126X_USE_REGULATOR_LDO
+      useRegulatorLDO = SX126X_USE_REGULATOR_LDO;
   #endif
+
+      ConfigLoRa_t cfg;
+      cfg.frequency = LORA_FREQ;
+      cfg.bandwidth = LORA_BW;
+      cfg.spreadingFactor = LORA_SF;
+  #ifdef LORA_CR
+      cfg.codingRate = LORA_CR;
+  #else
+      cfg.codingRate = 5;
+  #endif
+      cfg.syncWord = RADIOLIB_LORA_SYNC_WORD_PRIVATE;
+      cfg.power = LORA_TX_POWER;
+      cfg.preambleLength = 16;
+
+      MESH_DEBUG_PRINTLN("SX1262 regulator requested: %s", useRegulatorLDO ? "LDO" : "DC-DC");
 
   #if defined(P_LORA_SCLK)
     #ifdef NRF52_PLATFORM
@@ -42,11 +56,12 @@ class CustomSX1262 : public SX1262 {
       if (spi) spi->begin(P_LORA_SCLK, P_LORA_MISO, P_LORA_MOSI);
     #endif
   #endif
-      int status = begin(LORA_FREQ, LORA_BW, LORA_SF, cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, LORA_TX_POWER, 16, tcxo);
+      int status = begin(cfg);
       // if radio init fails with -707/-706, try again with tcxo voltage set to 0.0f
       if (status == RADIOLIB_ERR_SPI_CMD_FAILED || status == RADIOLIB_ERR_SPI_CMD_INVALID) {
-        tcxo = 0.0f;
-        status = begin(LORA_FREQ, LORA_BW, LORA_SF, cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, LORA_TX_POWER, 16, tcxo);
+        MESH_DEBUG_PRINTLN("SX1262 init failed with error %d, retrying with TCXO at 0.0V", status);
+        tcxoVoltage = 0.0f;
+        status = begin(cfg);
       }
       if (status != RADIOLIB_ERR_NONE) {
         Serial.print("ERROR: radio init failed: ");
@@ -82,6 +97,8 @@ class CustomSX1262 : public SX1262 {
     r_data |= 0x01;
     writeRegister(0x8B5, &r_data, 1);
   #endif
+
+      MESH_DEBUG_PRINTLN("SX1262 status=0x%02X device_errors=0x%04X", getStatus(), getDeviceErrors());
 
       return true;  // success
     }
