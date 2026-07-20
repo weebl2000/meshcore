@@ -14,6 +14,8 @@ public:
     ((CustomLR1110 *)_radio)->setBandwidth(bw);
     ((CustomLR1110 *)_radio)->setCodingRate(cr);
     updatePreamble(sf);
+    ((CustomLR1110 *)_radio)->setMaxPacketMillis(calcMaxPacketMillis(sf, bw, cr, preambleLengthForSF(sf)));
+
   }
 
   void doResetAGC() override { lr11x0ResetAGC((LR11x0 *)_radio, ((CustomLR1110 *)_radio)->getFreqMHz()); }
