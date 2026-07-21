@@ -130,7 +130,7 @@ class CustomSX1262 : public SX1262 {
       if (preamble) {
         if (_activityAt == 0) _activityAt = now;
         if (now - _activityAt > _preambleMillis) {
-          clearIrqStatus(RADIOLIB_IRQ_PREAMBLE_DETECTED);
+          clearIrqFlags(RADIOLIB_SX126X_IRQ_PREAMBLE_DETECTED);
           _activityAt = 0;
           MESH_DEBUG_PRINTLN("Clearing preamble IRQ after %ums", _preambleMillis);
 
@@ -142,10 +142,13 @@ class CustomSX1262 : public SX1262 {
       return false;
     }
 
-    void setMaxPacketMillis(PacketMillis maxPacketMillis) {
-      MESH_DEBUG_PRINTLN("Setting _preambleMillis=%u, _maxPacketMillis=%u", maxPacketMillis.preambleMillis, maxPacketMillis.payloadMillis);
-      _preambleMillis = maxPacketMillis.preambleMillis;
-      _maxPayloadMillis = maxPacketMillis.payloadMillis;
+    void setPreambleMillis(uint32_t preambleMillis) {
+      _preambleMillis = preambleMillis;
+      MESH_DEBUG_PRINTLN("Set _preambleMillis=%u", _preambleMillis);
+    }
+    void setMaxPayloadMillis(uint32_t payloadMillis) {
+      _maxPayloadMillis = payloadMillis;
+      MESH_DEBUG_PRINTLN("Set _maxPayloadMillis=%u", _maxPayloadMillis);
     }
 
     bool getRxBoostedGainMode() {
