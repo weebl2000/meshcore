@@ -104,10 +104,9 @@ void SerialBLEInterface::onMtuChanged(BLEServer* pServer, esp_ble_gatts_cb_param
 
 void SerialBLEInterface::onDisconnect(BLEServer* pServer) {
   BLE_DEBUG_PRINTLN("onDisconnect()");
+  deviceConnected = false;
   if (_isEnabled) {
     adv_restart_time = millis() + ADVERT_RESTART_DELAY;
-
-    // loop() will detect this on next loop, and set deviceConnected to false
   }
 }
 
@@ -213,14 +212,12 @@ size_t SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
     }
   }
 
-  Frame frame = {};
+  Frame frame;
   if (xQueueReceive(recv_queue, &frame, 0) == pdTRUE) {
     memcpy(dest, frame.buf, frame.len);
     BLE_DEBUG_PRINTLN("readBytes: sz=%d, hdr=%d", (uint32_t) frame.len, (uint32_t) dest[0]);
     return frame.len;
   }
-
-  if (pServer->getConnectedCount() == 0)  deviceConnected = false;
 
   if (deviceConnected != oldDeviceConnected) {
     if (!deviceConnected) {    // disconnecting
