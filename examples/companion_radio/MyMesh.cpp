@@ -280,7 +280,7 @@ int MyMesh::getInterferenceThreshold() const {
   return 0; // RSSI interference detection disabled, until currentRSSI() problem is resolved
 }
 bool MyMesh::getCADEnabled() const {
-  return false; // hardware CAD before TX (disabled by default, until configurable)
+  return true; // hardware CAD before TX (no CLI toggle on companion; enabled by default)
 }
 
 int MyMesh::calcRxDelay(float score, uint32_t air_time) const {
