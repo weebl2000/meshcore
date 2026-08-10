@@ -41,12 +41,12 @@ public:
   uint8_t getSpreadingFactor() const override { return ((CustomSX1268 *)_radio)->spreadingFactor; }
   uint8_t getCADDetPeakBase() const override { return getSpreadingFactor() + 13; }  // Semtech DS.SX1261-2 recommended detPeak
 
-  void doResetAGC() override { sx126xResetAGC((SX126x *)_radio); }
-
   bool setRxBoostedGainMode(bool en) override {
     return ((CustomSX1268 *)_radio)->setRxBoostedGainMode(en) == RADIOLIB_ERR_NONE;
   }
   bool getRxBoostedGainMode() const override {
     return ((CustomSX1268 *)_radio)->getRxBoostedGainMode();
   }
+
+  void doResetAGC() override { sx126xResetAGC((SX126x *)_radio, getRxBoostedGainMode()); }
 };
