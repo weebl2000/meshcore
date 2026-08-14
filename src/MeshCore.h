@@ -97,6 +97,10 @@ public:
   virtual bool canControlLoRaFemLna() const { return false; }
   virtual bool isLoRaFemLnaEnabled() const { return false; }
   virtual void loop() { /* no op */ }
+  // Software-selectable external FEM transmit gain. This is not a PA power switch.
+  virtual bool setLoRaFemPaGainEnabled(bool enable) { return false; }
+  virtual bool canControlLoRaFemPaGain() const { return false; }
+  virtual bool isLoRaFemPaGainEnabled() const { return false; }
 
   // Power management interface (boards with power management override these)
   virtual bool isExternalPowered() { return false; }
