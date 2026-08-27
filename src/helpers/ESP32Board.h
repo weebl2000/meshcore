@@ -17,6 +17,7 @@
 #include "soc/rtc.h"
 #include "esp_system.h"
 #include <driver/rtc_io.h>
+#include <helpers/KeyValueStore.h>
 
 class ESP32Board : public mesh::MainBoard {
 protected:
@@ -52,6 +53,8 @@ public:
     Wire.begin();
   #endif    
   }
+
+  void attachDynamicPrefs(KeyValueStore* prefs) { }  // no-op
 
   // Temperature from ESP32 MCU
   float getMCUTemperature() override {

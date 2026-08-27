@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <MeshCore.h>
+#include <helpers/KeyValueStore.h>
 
 #if defined(NRF52_PLATFORM)
 
@@ -115,6 +116,8 @@ public:
   void enterLightSleep(uint32_t secs, int pin_wake_btn = -1) { sleep(secs); }
   virtual void loop() override;
   bool isExternalPowered() override;
+
+  void attachDynamicPrefs(KeyValueStore* prefs) { }  // no-op
 
 #ifdef NRF52_POWER_MANAGEMENT
   uint16_t getBootVoltage() override { return boot_voltage_mv; }
