@@ -27,6 +27,8 @@ public:
   uint8_t telemetry_mode_loc = 0;
   uint8_t telemetry_mode_env = 0;
   float rx_delay_base = 0;
+  float tx_delay_factor = 0;
+  float direct_tx_delay_factor = 0;
   uint32_t ble_pin = 0;
   uint8_t  advert_loc_policy = 0;
   uint8_t  buzzer_quiet = 0;
@@ -41,6 +43,8 @@ public:
   uint8_t path_hash_mode = 0;    // which path mode to use when sending
   uint8_t autoadd_max_hops = 0;  // 0 = no limit, 1 = direct (0 hops), N = up to N-1 hops (max 64)
   uint8_t cad_enabled = 1;       // hardware CAD before TX (on by default on dev_plus)
+  uint8_t interference_threshold = 0;
+  uint8_t agc_reset_interval = 5;  // secs / 4 (dev_plus: 20s AGC reset on by default)
   char default_scope_name[31];
   uint8_t default_scope_key[16];
   int8_t tz_offset = 0;
@@ -55,16 +59,16 @@ private:
       def("sf", _parent->sf);
       def("cr", _parent->cr);
       def("cad", _parent->cad_enabled);
-      //def("int_thr", _parent->interference_threshold);
+      def("int_thr", _parent->interference_threshold);
       def("rxgain", _parent->rx_boosted_gain);
       def("fem_rxgain", _parent->radio_fem_rxgain);   // fem_rxgain WAS mapped to wrong JSON property previously
       def("fem_txgain", _parent->radio_fem_txgain);
       def("tx", _parent->tx_power_dbm);
       def("af", _parent->airtime_factor);
       def("rxdelay", _parent->rx_delay_base);
-      //def("f_txdelay", _parent->tx_delay_factor);   currently hard-coded
-      //def("d_txdelay", _parent->direct_tx_delay_factor);  currently hard-coded
-      //def("agc_int", _parent->agc_reset_interval);
+      def("f_txdelay", _parent->tx_delay_factor);
+      def("d_txdelay", _parent->direct_tx_delay_factor);
+      def("agc_int", _parent->agc_reset_interval);
       def("hash_mode", _parent->path_hash_mode);
       def("multi_ack", _parent->multi_acks);
     }
@@ -84,24 +88,24 @@ private:
     void setAirtimeFactor(float af) override { _parent->airtime_factor = af; markDirty(); }
     bool isCadEnabled() const override { return _parent->cad_enabled; }
     void setCadEnabled(bool en) override { _parent->cad_enabled = en; markDirty(); }
-    uint8_t getIntThresh() const override { return 0; }
-    void setIntThresh(uint8_t t) override { /* no-op */ }
+    uint8_t getIntThresh() const override { return _parent->interference_threshold; }
+    void setIntThresh(uint8_t t) override { _parent->interference_threshold = t; markDirty(); }
     uint8_t getRxGain() const override { return _parent->rx_boosted_gain; }
     void setRxGain(uint8_t g) override { _parent->rx_boosted_gain = g; markDirty(); }
     uint8_t getTxPower() const override { return _parent->tx_power_dbm; }
     void setTxPower(uint8_t dbm) override { _parent->tx_power_dbm = dbm; markDirty(); }
     float getRxDelay() const override { return _parent->rx_delay_base; }
     void setRxDelay(float d) override { _parent->rx_delay_base = d; markDirty(); }
-    uint8_t getAgcResetInt() const override { return 0; }
-    void setAgcResetInt(uint8_t secs) override { /* no-op */ }
+    uint8_t getAgcResetInt() const override { return _parent->agc_reset_interval * 4; }
+    void setAgcResetInt(uint8_t secs) override { _parent->agc_reset_interval = secs / 4; markDirty(); }
     uint8_t getHashMode() const override { return _parent->path_hash_mode; }
     void setHashMode(uint8_t m) override { _parent->path_hash_mode = m; markDirty(); }
     uint8_t getMultiAcks() const override { return _parent->multi_acks; }
     void setMultiAcks(uint8_t m) override { _parent->multi_acks = m; markDirty(); }
-    float getFloodTxDelay() const override { return 0.5f; }  //   currently hard-coded
-    void setFloodTxDelay(float d) override { /* no-op */ }
-    float getDirectTxDelay() const override { return 0.2f; }  //   currently hard-coded
-    void setDirectTxDelay(float d) override { /* no-op */ }
+    float getFloodTxDelay() const override { return _parent->tx_delay_factor; }
+    void setFloodTxDelay(float d) override { _parent->tx_delay_factor = d; markDirty(); }
+    float getDirectTxDelay() const override { return _parent->direct_tx_delay_factor; }
+    void setDirectTxDelay(float d) override { _parent->direct_tx_delay_factor = d; markDirty(); }
     uint8_t getFEMRxGain() const override { return _parent->radio_fem_rxgain; }
     void setFEMRxGain(uint8_t g) override { _parent->radio_fem_rxgain = g; markDirty(); }
     uint8_t getFEMTxGain() const override { return _parent->radio_fem_txgain; }
