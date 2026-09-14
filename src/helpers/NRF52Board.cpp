@@ -51,7 +51,8 @@ static void __attribute__((constructor(101))) nrf52_early_reset_capture() {
   g_nrf52_shutdown_reason = NRF_POWER->GPREGRET2;
 }
 
-void NRF52Board::initPowerMgr() {
+void NRF52Board::pwrmgtInit() {
+  if (pwrmgt_initialised) return;
   // Copy early-captured register values
   reset_reason = g_nrf52_reset_reason;
   shutdown_reason = g_nrf52_shutdown_reason;
@@ -78,6 +79,7 @@ void NRF52Board::initPowerMgr() {
     MESH_DEBUG_PRINTLN("PWRMGT: Reset = %s (0x%lX)",
       getResetReasonString(reset_reason), (unsigned long)reset_reason);
   }
+  pwrmgt_initialised = true;
 }
 
 const char* NRF52Board::getResetReasonString(uint32_t reason) {
@@ -102,6 +104,7 @@ const char* NRF52Board::getResetReasonString(uint32_t reason) {
 
 const char* NRF52Board::getShutdownReasonString(uint8_t reason) {
   switch (reason) {
+    case SHUTDOWN_REASON_NONE:         return "None";
     case SHUTDOWN_REASON_LOW_VOLTAGE:  return "Low Voltage";
     case SHUTDOWN_REASON_USER:         return "User Request";
     case SHUTDOWN_REASON_BOOT_PROTECT: return "Boot Protection";
@@ -110,7 +113,7 @@ const char* NRF52Board::getShutdownReasonString(uint8_t reason) {
 }
 
 bool NRF52Board::checkBootVoltage(const PowerMgtConfig* config) {
-  initPowerMgr();
+  pwrmgtInit();
 
   // Store config for runtime use (voltage monitoring, WDT)
   _power_config = config;
@@ -204,6 +207,15 @@ void NRF52Board::enterSystemOff(uint8_t reason) {
 }
 
 bool NRF52Board::configureVoltageWake(uint8_t ain_channel, uint8_t refsel) {
+  pwrmgtWakeArmVbus();
+  if (!isPwrMgtInitialised()) {
+    MESH_DEBUG_PRINTLN("PWRMGT: LPCOMP wake not armed. Reason: Power Management not initialised");
+    return false;
+  }
+  if (!getWakeLpcompSupported()) {
+    MESH_DEBUG_PRINTLN("PWRMGT: LPCOMP wake not armed. Reason: LPCOMP unsupported on variant");
+    return false;
+  }
   // LPCOMP is not managed by SoftDevice - direct register access required
   // Halt and disable before reconfiguration
   NRF_LPCOMP->TASKS_STOP = 1;
@@ -234,7 +246,7 @@ bool NRF52Board::configureVoltageWake(uint8_t ain_channel, uint8_t refsel) {
   NRF_LPCOMP->ENABLE = LPCOMP_ENABLE_ENABLE_Enabled;
   NRF_LPCOMP->TASKS_START = 1;
 
-  // Wait for comparator to settle before entering SYSTEMOFF
+  // Wait for comparator to settle
   for (uint8_t i = 0; i < 20 && !NRF_LPCOMP->EVENTS_READY; i++) {
     delayMicroseconds(50);
   }
@@ -258,7 +270,10 @@ bool NRF52Board::configureVoltageWake(uint8_t ain_channel, uint8_t refsel) {
       ain_channel, ref_num);
   }
 
-  // Configure VBUS (USB power) wake alongside LPCOMP
+  return true;
+}
+
+void NRF52Board::pwrmgtWakeArmVbus() {
   uint8_t sd_enabled = 0;
   sd_softdevice_is_enabled(&sd_enabled);
   if (sd_enabled) {
@@ -267,10 +282,7 @@ bool NRF52Board::configureVoltageWake(uint8_t ain_channel, uint8_t refsel) {
     NRF_POWER->EVENTS_USBDETECTED = 0;
     NRF_POWER->INTENSET = POWER_INTENSET_USBDETECTED_Msk;
   }
-
-  MESH_DEBUG_PRINTLN("PWRMGT: VBUS wake configured");
-
-  return true;
+  MESH_DEBUG_PRINTLN("PWRMGT: VBUS wake armed");
 }
 
 #define VOLTAGE_CHECK_INTERVAL_MS  30000
