@@ -1,5 +1,7 @@
 /*
- * variant.h - ThinkNode M4 (nRF52840 + LR1110)
+ * variant.h
+ * Copyright (C) 2023 Seeed K.K.
+ * MIT License
  */
 
 #pragma once
@@ -11,6 +13,7 @@
 
 #define USE_LFXO    // 32.768 kHz crystal oscillator
 #define VARIANT_MCK (64000000ul)
+// #define USE_LFRC    // 32.768 kHz RC oscillator
 
 ////////////////////////////////////////////////////////////////////////////////
 // Number of pins
@@ -25,27 +28,16 @@
 
 #define NRF_APM                                 // detect usb power
 
-#define EXT_CHRG_DETECT         (38)            // P1.06
-#define EXT_CHRG_DETECT_VALUE   HIGH
+#define EXT_CHRG_DETECT         (38)
+// Power to radio
+#define PIN_PWR_EN              (11)
 
-#define PIN_A0                  (2)             // P0.02
-#define PIN_VBAT_READ           PIN_A0
-#define AREF_VOLTAGE            (3.0f)
-#define ADC_MULTIPLIER          (2.0f)
-#define ADC_RESOLUTION          (12)
-#define ADC_MAX                 (4096)
+// I2C bus power
+#define I2C_POWER               (32)
+#define I2C_POWER_ACTIVE        LOW
 
-static const uint8_t A0 = PIN_A0;
-
-#define PIN_POWER_EN            (11)            // P0.11 - LoRa radio power
-
-// Serial battery interface (secondary MCU in dock, 4800 baud)
-#define HAS_SERIAL_BATTERY_LEVEL 1
-#define SERIAL_BATTERY_RX       (30)            // P0.30
-#define SERIAL_BATTERY_TX       (5)             // P0.05
-#define PIN_SERIAL2_RX          SERIAL_BATTERY_RX
-#define PIN_SERIAL2_TX          SERIAL_BATTERY_TX
-#define SERIAL_BATTERY_BAUD     4800
+#define PIN_BAT_RX              (5)
+#define PIN_BAT_TX              (30)
 
 ////////////////////////////////////////////////////////////////////////////////
 // UART pin definition
@@ -53,14 +45,17 @@ static const uint8_t A0 = PIN_A0;
 #define PIN_SERIAL1_RX          PIN_GPS_TX
 #define PIN_SERIAL1_TX          PIN_GPS_RX
 
+#define PIN_SERIAL2_RX          PIN_BAT_TX
+#define PIN_SERIAL2_TX          PIN_BAT_RX
+
 ////////////////////////////////////////////////////////////////////////////////
 // I2C pin definition
 
 #define HAS_WIRE                (1)
 #define WIRE_INTERFACES_COUNT   (1)
 
-#define PIN_WIRE_SDA            (23)            // P0.23
-#define PIN_WIRE_SCL            (25)            // P0.25
+#define PIN_WIRE_SDA            (23)
+#define PIN_WIRE_SCL            (25)
 #define I2C_NO_RESCAN
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -68,48 +63,44 @@ static const uint8_t A0 = PIN_A0;
 
 #define SPI_INTERFACES_COUNT    (1)
 
-#define PIN_SPI_MISO            (8)             // P0.08
-#define PIN_SPI_MOSI            (7)             // P0.07
-#define PIN_SPI_SCK             (6)             // P0.06
-#define PIN_SPI_NSS             (27)            // P0.27
+#define PIN_SPI_MISO            (8)
+#define PIN_SPI_MOSI            (7)
+#define PIN_SPI_SCK             (6)
+#define PIN_SPI_NSS             (27)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Builtin LEDs
 
-#define PIN_LED_NOTIFICATION    (41)            // P1.09
-#define PIN_LED_PAIRING         (13)            // P0.13
-
-#define Battery_LED_1           (15)            // P0.15
-#define Battery_LED_2           (17)            // P0.17
-#define Battery_LED_3           (34)            // P1.02
-#define Battery_LED_4           (36)            // P1.04
-
-#define LED_BLUE                (-1)            // No blue LED
-#define LED_BUILTIN             PIN_LED_NOTIFICATION
-#define LED_PIN                 LED_BUILTIN
+#define LED_BLUE                (-1)            // disable blue led
+#define LED_STATUS              (13)            // blue
+#define LED_PIN                 (41)            // red
+#define LED_TX                  LED_PIN
+#define LED_BUILTIN             LED_BLUE
 #define LED_STATE_ON            HIGH
+
+#define LED_BAT1                (15)
+#define LED_BAT2                (17)
+#define LED_BAT3                (34)
+#define LED_BAT4                (36)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Builtin buttons
 
-#define PIN_BUTTON1             (4)             // P0.04
+#define PIN_BUTTON1             (4)
 #define BUTTON_PIN              PIN_BUTTON1
+#define USER_BTN_PRESSED        LOW
 
 ////////////////////////////////////////////////////////////////////////////////
 // GPS
 
 #define HAS_GPS                 1
-#define PIN_GPS_RX              (44)            // P1.12 - GPS module TX -> MCU RX
-#define PIN_GPS_TX              (46)            // P1.14 - GPS module RX <- MCU TX
-#define PIN_GPS_EN              (43)            // P1.11 - GPS enable
-#define PIN_GPS_RESET           (3)             // P0.03 - GPS reset
-#define PIN_GPS_STANDBY         (28)            // P0.28 - GPS standby
-#define GPS_RESET_ACTIVE        HIGH
-#define GPS_EN_ACTIVE           LOW
 #define GPS_BAUDRATE            9600
+#define PIN_GPS_RX              (44)
+#define PIN_GPS_TX              (46)
 
-////////////////////////////////////////////////////////////////////////////////
-// Peripherals on I2C bus - VEXT control
-
-#define VEXT_ENABLE             (32)            // P1.00
-#define VEXT_ON_VALUE           LOW
+#define PIN_GPS_POWER           (14)
+#define GPS_POWER_ACTIVE        LOW
+#define PIN_GPS_EN              (43)
+#define GPS_EN_ACTIVE           LOW
+#define PIN_GPS_RESET           (3)
+#define GPS_RESET_ACTIVE        HIGH

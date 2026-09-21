@@ -5,7 +5,7 @@
     },
     "core": "nRF5",
     "cpu": "cortex-m4",
-    "extra_flags": "-DNRF52840_XXAA",
+    "extra_flags": "-DARDUINO_NRF52840_MUZI_BASE -DNRF52840_XXAA",
     "f_cpu": "64000000L",
     "hwids": [
       [
@@ -21,9 +21,9 @@
         "0x002A"
       ]
     ],
-    "usb_product": "elecrow_thinknode_m4",
+    "usb_product": "muzi_base",
     "mcu": "nrf52840",
-    "variant": "ELECROW-ThinkNode-M4",
+    "variant": "MUZI_BASE",
     "bsp": {
       "name": "adafruit"
     },
@@ -51,9 +51,9 @@
   "frameworks": [
     "arduino"
   ],
-  "name": "elecrow nrf",
+  "name": "Muzi Base",
   "upload": {
-    "maximum_ram_size": 235520,
+    "maximum_ram_size": 248832,
     "maximum_size": 815104,
     "speed": 115200,
     "use_1200bps_touch": true,
@@ -67,6 +67,6 @@
       "stlink"
     ]
   },
-  "url": "https://github.com/Elecrow-RD",
-  "vendor": "ELECROW"
+  "url": "https://github.com/muzi-works",
+  "vendor": "MuziWorks"
 }
