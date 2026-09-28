@@ -6,9 +6,14 @@
 // RadioLib 7.7.0+ provides resetAGC(): warm sleep powers down analog, Calibrate(0x7F)
 // refreshes ADC/PLL/image calibration, image is re-calibrated for the operating
 // frequency, and DIO2 RF switch / RX boosted gain are re-applied automatically.
-inline void sx126xResetAGC(SX126x* radio) {
+inline void sx126xResetAGC(SX126x* radio, bool rx_boost_gain) {
   radio->resetAGC();
 
+#ifdef SX126X_RX_BOOSTED_GAIN
+  // resetAGC() only restores boosted gain when it was enabled, so apply the
+  // caller's current (user/flash) setting explicitly.
+  radio->setRxBoostedGainMode(rx_boost_gain);
+#endif
 #ifdef SX126X_REGISTER_PATCH
   // for improved RX with Heltec v4 — calibration may reset this
   uint8_t r_data = 0;

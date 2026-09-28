@@ -6,6 +6,18 @@
 #include "TFT_eSPI.h"
 #include <helpers/RefCountedDigitalPin.h>
 
+#if defined(ESP32) && defined(FS_NO_GLOBALS)
+// TFT_eSPI with SMOOTH_FONT defines FS_NO_GLOBALS before including FS.h,
+// which suppresses the global aliases the rest of the codebase relies on.
+#include <FS.h>
+using fs::FS;
+using fs::File;
+using fs::SeekMode;
+using fs::SeekSet;
+using fs::SeekCur;
+using fs::SeekEnd;
+#endif
+
 class ST7735Display : public DisplayDriver {
   bool _isOn;
   RefCountedDigitalPin* _peripher_power;
@@ -33,9 +45,9 @@ public:
   void turnOn() override;
   void turnOff() override;
   void clear() override;
-  void startFrame(Color bkg = DARK) override;
+  void startFrame(ColorVal bkg = UIColor::window_bkg) override;
   void setTextSize(int sz) override;
-  void setColor(Color c) override;
+  void setColor(ColorVal c) override;
   void setCursor(int x, int y) override;
   void print(const char* str) override;
   void fillRect(int x, int y, int w, int h) override;

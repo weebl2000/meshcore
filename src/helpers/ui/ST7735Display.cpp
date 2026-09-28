@@ -255,6 +255,10 @@ static const uint8_t PROGMEM
       0x00, 0x00,                   //     XSTART = 0
       0x00, 0x9F },                 //     XEND = 159
 
+  Rcmd2invert[] = {      // Tracker V1, part 2 
+    1,                              //  1 command in list:
+    ST77XX_INVON,  0 },             //    1: Display is inverted
+
   Rcmd3[] = {                       // 7735R init, part 3 (red or green tab)
     2,                              //  2 commands in list:
     ST7735_GMCTRP1, 16      ,       //  1: Gamma Adjustments (pos. polarity), 16 args + delay:
@@ -413,6 +417,17 @@ bool ST7735Display::i2c_probe(TwoWire& wire, uint8_t addr) {
   #define PIN_TFT_LEDA_CTL_ACTIVE  HIGH
 #endif
 
+// Color scheme
+ColorVal UIColor::window_bkg = ST77XX_WHITE;
+ColorVal UIColor::title_bkg = ST77XX_BLUE;
+ColorVal UIColor::title_txt = ST77XX_WHITE;
+ColorVal UIColor::primary_txt = ST77XX_BLACK;
+ColorVal UIColor::secondary_txt = (18 << 11) | (36 << 5) | 18;  // mid-gray
+ColorVal UIColor::warning_txt = ST77XX_ORANGE;
+ColorVal UIColor::popup_bkg = ST77XX_CYAN;
+ColorVal UIColor::popup_txt = ST77XX_BLACK;
+ColorVal UIColor::corp_blue = 0x001A;
+
 bool ST7735Display::begin() {
   if (!sprite) {
     // alloc offscreen canvas
@@ -447,8 +462,13 @@ bool ST7735Display::begin() {
 
     _height = 80;
     _width = 160;
+#if defined(HELTEC_LORA_V3)  // Tracker v1
+    _colstart = 26;
+    _rowstart = 1;
+#else
     _colstart = 24;
     _rowstart = 0;
+#endif
 
     _resetAndInit();
 
@@ -474,6 +494,8 @@ void ST7735Display::_resetAndInit() {
     displayInit(Rcmd2green160x80);
     //uint8_t madctl = ST77XX_MADCTL_MY | ST77XX_MADCTL_MV |ST7735_MADCTL_BGR;//Adjust color to BGR
     //display.sendCommand(ST77XX_MADCTL, &madctl, 1);
+#elif defined(HELTEC_LORA_V3)  // Tracker v1
+    displayInit(Rcmd2invert);   // invert RGB
 #endif
     displayInit(Rcmd3);
     setRotation(DISPLAY_ROTATION);
@@ -516,9 +538,9 @@ void ST7735Display::clear() {
   sprite->fillScreen(ST77XX_BLACK);
 }
 
-void ST7735Display::startFrame(Color bkg) {
-  sprite->fillScreen(ST77XX_BLACK);
-  sprite->setTextColor(curr_color = ST77XX_WHITE);
+void ST7735Display::startFrame(ColorVal bkg) {
+  sprite->fillScreen(bkg);
+  sprite->setTextColor(curr_color = UIColor::primary_txt);
   sprite->setFreeFont();
   sprite->setTextSize(1);      // This one affects size of Please wait... message
   //sprite->cp437(true);         // Use full 256 char 'Code Page 437' font
@@ -528,33 +550,8 @@ void ST7735Display::setTextSize(int sz) {
   sprite->setTextSize(sz);
 }
 
-void ST7735Display::setColor(Color c) {
-  switch (c) {
-    case DisplayDriver::DARK :
-      curr_color = ST77XX_BLACK;
-      break;
-    case DisplayDriver::LIGHT : 
-      curr_color = ST77XX_WHITE;
-      break;
-    case DisplayDriver::RED : 
-      curr_color = ST77XX_RED;
-      break;
-    case DisplayDriver::GREEN : 
-      curr_color = ST77XX_GREEN;
-      break;
-    case DisplayDriver::BLUE : 
-      curr_color = ST77XX_BLUE;
-      break;
-    case DisplayDriver::YELLOW : 
-      curr_color = ST77XX_YELLOW;
-      break;
-    case DisplayDriver::ORANGE : 
-      curr_color = ST77XX_ORANGE;
-      break;
-    default:
-      curr_color = ST77XX_WHITE;
-      break;
-  }
+void ST7735Display::setColor(ColorVal c) {
+  curr_color = c;
   sprite->setTextColor(curr_color);
 }
 

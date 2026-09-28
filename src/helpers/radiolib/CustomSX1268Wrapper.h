@@ -18,6 +18,9 @@ public:
     ((CustomSX1268 *)_radio)->setBandwidth(bw);
     ((CustomSX1268 *)_radio)->setCodingRate(cr);
     updatePreamble(sf);
+    PacketMillis pm = calcMaxPacketMillis(sf, bw, cr, preambleLengthForSF(sf));
+    ((CustomSX1268 *)_radio)->setPreambleMillis(pm.preambleMillis);
+    ((CustomSX1268 *)_radio)->setMaxPayloadMillis(pm.payloadMillis);
   }
 
   bool isReceivingPacket() override { 
@@ -36,8 +39,7 @@ public:
     return packetScoreInt(snr, sf, packet_len);
   }
   uint8_t getSpreadingFactor() const override { return ((CustomSX1268 *)_radio)->spreadingFactor; }
-
-  void doResetAGC() override { sx126xResetAGC((SX126x *)_radio); }
+  uint8_t getCADDetPeakBase() const override { return getSpreadingFactor() + 13; }  // Semtech DS.SX1261-2 recommended detPeak
 
   bool setRxBoostedGainMode(bool en) override {
     return ((CustomSX1268 *)_radio)->setRxBoostedGainMode(en) == RADIOLIB_ERR_NONE;
@@ -45,4 +47,6 @@ public:
   bool getRxBoostedGainMode() const override {
     return ((CustomSX1268 *)_radio)->getRxBoostedGainMode();
   }
+
+  void doResetAGC() override { sx126xResetAGC((SX126x *)_radio, getRxBoostedGainMode()); }
 };

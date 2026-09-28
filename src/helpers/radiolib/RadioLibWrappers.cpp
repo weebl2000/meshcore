@@ -11,11 +11,20 @@
 #define NUM_NOISE_FLOOR_SAMPLES  64
 #define SAMPLING_THRESHOLD  14
 
+// ambient CAD auto-calibration: probe CAD periodically while idle, and raise/lower detPeak
+// so ambient activity (sub-decode-threshold distant traffic, interference) stops tripping LBT
+#define CAD_PROBE_INTERVAL     4000   // millis between ambient CAD probes
+#define CAD_PROBE_INTERVAL_QUIET 16000  // slower probing while offset is 0 and channel is clean
+#define CAD_PROBE_WINDOW         16   // probes per evaluation window
+#define CAD_PROBE_RAISE_HITS      5   // >= ~30% ambient detect rate -> desensitize
+#define CAD_PROBE_LOWER_HITS      2   // <= ~12% ambient detect rate -> re-sensitize
+#define CAD_PEAK_OFFSET_MAX       6
+
 static volatile uint8_t state = STATE_IDLE;
 
 // this function is called when a complete packet
 // is transmitted by the module
-static 
+static
 #if defined(ESP8266) || defined(ESP32)
   ICACHE_RAM_ATTR
 #endif
@@ -37,6 +46,11 @@ void RadioLibWrapper::begin() {
   _noise_floor = 0;
   _threshold = 0;
   _cad_enabled = false;
+  _cad_peak_offset = 0;
+  _cad_probe_count = _cad_probe_hits = 0;
+  _cad_last_count = _cad_last_hits = 0;
+  _last_cad_probe = 0;
+  _cad_probe_interval = CAD_PROBE_INTERVAL;
 
   // start average out some samples
   _num_floor_samples = 0;
@@ -48,6 +62,9 @@ uint32_t RadioLibWrapper::getRngSeed() {
 }
 
 void RadioLibWrapper::setTxPower(int8_t dbm) {
+#if defined(USE_LR2021)
+  idle();
+#endif
   _radio->setOutputPower(dbm);
 }
 
@@ -100,11 +117,59 @@ void RadioLibWrapper::loop() {
     }
     _floor_sample_sum = 0;
 
+    #ifdef MESH_DEBUG_NOISE_FLOOR
     MESH_DEBUG_PRINTLN("RadioLibWrapper: noise_floor = %d", (int)_noise_floor);
+    #endif
+  }
+
+  if (_cad_enabled && state == STATE_RX && getCADDetPeakBase() > 0
+      && millis() - _last_cad_probe >= _cad_probe_interval) {
+    _last_cad_probe = millis();
+    if (!isReceivingPacket()) {
+      int16_t result = performChannelScan();
+      // CAD-done DIO interrupt sets STATE_INT_READY via setFlag() ISR. Clear it
+      // before restarting RX so recvRaw() doesn't try to read a non-existent packet.
+      state = STATE_IDLE;
+      startRecv();
+
+      if (result == RADIOLIB_CHANNEL_FREE) {
+        _cad_probe_count++;
+      } else if (result == RADIOLIB_LORA_DETECTED || result == RADIOLIB_PREAMBLE_DETECTED) {
+        _cad_probe_count++;
+        _cad_probe_hits++;
+        _cad_probe_interval = CAD_PROBE_INTERVAL;   // activity -> resume fast probing
+      }
+      // else: scan error, don't count the sample
+
+      if (_cad_probe_hits >= CAD_PROBE_RAISE_HITS) {   // ambient rate too high, don't wait out the window
+        if (_cad_peak_offset < CAD_PEAK_OFFSET_MAX) {
+          _cad_peak_offset++;
+          MESH_DEBUG_PRINTLN("RadioLibWrapper: CAD ambient %d/%d, detPeak offset -> %d",
+              (int)_cad_probe_hits, (int)_cad_probe_count, (int)_cad_peak_offset);
+        }
+        _cad_last_hits = _cad_probe_hits; _cad_last_count = _cad_probe_count;
+        _cad_probe_count = _cad_probe_hits = 0;
+      } else if (_cad_probe_count >= CAD_PROBE_WINDOW) {
+        if (_cad_probe_hits <= CAD_PROBE_LOWER_HITS && _cad_peak_offset > 0) {
+          // step down twice as fast when the window was completely clean
+          _cad_peak_offset -= (_cad_probe_hits == 0 && _cad_peak_offset >= 2) ? 2 : 1;
+          MESH_DEBUG_PRINTLN("RadioLibWrapper: CAD ambient %d/%d, detPeak offset -> %d",
+              (int)_cad_probe_hits, (int)_cad_probe_count, (int)_cad_peak_offset);
+        }
+        if (_cad_probe_hits == 0 && _cad_peak_offset == 0) {
+          _cad_probe_interval = CAD_PROBE_INTERVAL_QUIET;   // idle channel, probe less often
+        }
+        _cad_last_hits = _cad_probe_hits; _cad_last_count = _cad_probe_count;
+        _cad_probe_count = _cad_probe_hits = 0;
+      }
+    }
   }
 }
 
 void RadioLibWrapper::startRecv() {
+  #if defined(USE_LR2021)
+  _radio->standby(); // without this LR2021 can throw -706 when calling startReceive after hardware CAD when side detectors are enabled
+  #endif
   int err = _radio->startReceive();
   if (err == RADIOLIB_ERR_NONE) {
     state = STATE_RX;
@@ -133,7 +198,11 @@ int RadioLibWrapper::recvRaw(uint8_t* bytes, int sz) {
         n_recv++;
       }
     }
+    #if defined(USE_LR2021)
+    state = STATE_RX;     // LR2021 stays in Rx after readData, calling startReceive while still in Rx throws -706 errors
+    #else
     state = STATE_IDLE;   // need another startReceive()
+    #endif
   }
 
   if (state != STATE_RX) {
@@ -180,6 +249,21 @@ void RadioLibWrapper::onSendFinished() {
 }
 
 int16_t RadioLibWrapper::performChannelScan() {
+  uint8_t peak_base = getCADDetPeakBase();
+  if (_cad_peak_offset > 0 && peak_base > 0) {
+    ChannelScanConfig_t cfg = {
+      .cad = {
+        .symNum = 0xFF,    // 0xFF -> radio-specific default (RADIOLIB_*_CAD_PARAM_DEFAULT)
+        .detPeak = (uint8_t)(peak_base + _cad_peak_offset),
+        .detMin = 0xFF,
+        .exitMode = 0xFF,
+        .timeout = 0,
+        .irqFlags = RADIOLIB_IRQ_CAD_DEFAULT_FLAGS,
+        .irqMask = RADIOLIB_IRQ_CAD_DEFAULT_MASK,
+      },
+    };
+    return _radio->scanChannel(cfg);
+  }
   return _radio->scanChannel();
 }
 
@@ -217,14 +301,32 @@ static float snr_threshold[] = {
     -17.5,// SF11 needs at least -17.5 dB SNR
     -20   // SF12 needs at least -20 dB SNR
 };
-  
+
 float RadioLibWrapper::packetScoreInt(float snr, int sf, int packet_len) {
   if (sf < 7) return 0.0f;
-  
+
   if (snr < snr_threshold[sf - 7]) return 0.0f;    // Below threshold, no chance of success
 
   auto success_rate_based_on_snr = (snr - snr_threshold[sf - 7]) / 10.0;
   auto collision_penalty = 1 - (packet_len / 256.0);   // Assuming max packet of 256 bytes
 
   return max(0.0, min(1.0, success_rate_based_on_snr * collision_penalty));
+}
+
+PacketMillis RadioLibWrapper::calcMaxPacketMillis(uint8_t sf, float bw, uint8_t cr, uint8_t preambleSymbols) {
+  // based on RadioLib's calculateTimeOnAir()
+  uint32_t tsym_us = ((uint32_t)10000 << sf) / (bw * 10);
+  uint32_t sfCoeff1_x4 = (sf == 5 || sf == 6) ? 25 : 17; // 6.25 : 4.25, semtech magic numbers to account for sync word + sfd
+
+  // preamble + syncword + sfd + header
+  uint32_t preamble_us = (((preambleSymbols + 8) * 4 + sfCoeff1_x4) * tsym_us) / 4;
+
+  // airtime for max packet at current radio settings
+  uint32_t total_us   = _radio->getTimeOnAir(MAX_TRANS_UNIT);
+  // airtime for payload only (no preamble, header or SOF)
+  uint32_t payload_us = total_us > preamble_us ? total_us - preamble_us : 4000 - preamble_us; // fallback to 4 secs at worst case
+  // rescale payload_us for max possible CR
+  if (cr >= 5 && cr < 8) { payload_us = (payload_us * 8) / cr; }
+
+  return PacketMillis {(preamble_us + 999) / 1000, (payload_us + 999) / 1000};
 }

@@ -5,7 +5,7 @@
     },
     "core": "nRF5",
     "cpu": "cortex-m4",
-    "extra_flags": "-DARDUINO_NRF52840_ELECROW_M4 -DNRF52840_XXAA",
+    "extra_flags": "-DNRF52840_XXAA",
     "f_cpu": "64000000L",
     "hwids": [
       [
@@ -46,14 +46,14 @@
       "jlink"
     ],
     "svd_path": "nrf52840.svd",
-    "openocd_target": "nrf52840-mdk-rs"
+    "openocd_target": "nrf52.cfg"
   },
   "frameworks": [
     "arduino"
   ],
-  "name": "ELECROW ThinkNode M4",
+  "name": "elecrow nrf",
   "upload": {
-    "maximum_ram_size": 248832,
+    "maximum_ram_size": 235520,
     "maximum_size": 815104,
     "speed": 115200,
     "use_1200bps_touch": true,
@@ -67,6 +67,6 @@
       "stlink"
     ]
   },
-  "url": "https://www.elecrow.com/thinknode-m4-power-bank-lora-device-with-meshtastic-lora-tracker-function-powered-by-nrf52840.html",
+  "url": "https://github.com/Elecrow-RD",
   "vendor": "ELECROW"
 }

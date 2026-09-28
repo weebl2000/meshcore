@@ -1,5 +1,7 @@
 /*
- * variant.cpp - ThinkNode M4 (nRF52840 + LR1110)
+ * variant.cpp
+ * Copyright (C) 2023 Seeed K.K.
+ * MIT License
  */
 
 #include "variant.h"
@@ -60,32 +62,33 @@ const uint32_t g_ADigitalPinMap[] =
 
 void initVariant()
 {
-  // Enable radio power
-  pinMode(PIN_POWER_EN, OUTPUT);
-  digitalWrite(PIN_POWER_EN, HIGH);
+/* TODO */
+  pinMode(PIN_PWR_EN, OUTPUT);
+  pinMode(I2C_POWER, OUTPUT);
 
-  // LEDs off
-  pinMode(PIN_LED_NOTIFICATION, OUTPUT);
-  digitalWrite(PIN_LED_NOTIFICATION, LOW);
-  pinMode(PIN_LED_PAIRING, OUTPUT);
-  digitalWrite(PIN_LED_PAIRING, LOW);
-  pinMode(Battery_LED_1, OUTPUT);
-  digitalWrite(Battery_LED_1, LOW);
-  pinMode(Battery_LED_2, OUTPUT);
-  digitalWrite(Battery_LED_2, LOW);
-  pinMode(Battery_LED_3, OUTPUT);
-  digitalWrite(Battery_LED_3, LOW);
-  pinMode(Battery_LED_4, OUTPUT);
-  digitalWrite(Battery_LED_4, LOW);
+  digitalWrite(PIN_PWR_EN, HIGH);
+  digitalWrite(I2C_POWER, I2C_POWER_ACTIVE);
 
-  // Button
+  pinMode(LED_STATUS, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(LED_BAT1, OUTPUT);
+  pinMode(LED_BAT2, OUTPUT);
+  pinMode(LED_BAT3, OUTPUT);
+  pinMode(LED_BAT4, OUTPUT);
+
+  digitalWrite(LED_BAT1, LOW);
+  digitalWrite(LED_BAT2, LOW);
+  digitalWrite(LED_BAT3, LOW);
+  digitalWrite(LED_BAT4, LOW);
+  digitalWrite(LED_STATUS, LOW);
+  digitalWrite(LED_PIN, LOW);
+
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
-  // GPS: powered but in standby
+  pinMode(PIN_GPS_POWER, OUTPUT);
   pinMode(PIN_GPS_EN, OUTPUT);
-  digitalWrite(PIN_GPS_EN, !GPS_EN_ACTIVE);       // disabled (HIGH, since active LOW)
-  pinMode(PIN_GPS_RESET, OUTPUT);
-  digitalWrite(PIN_GPS_RESET, !GPS_RESET_ACTIVE);  // not in reset (LOW, since active HIGH)
-  pinMode(PIN_GPS_STANDBY, OUTPUT);
-  digitalWrite(PIN_GPS_STANDBY, HIGH);              // standby active
+
+  // Power on gps but in standby
+  digitalWrite(PIN_GPS_EN, !GPS_EN_ACTIVE);
+  digitalWrite(PIN_GPS_POWER, GPS_POWER_ACTIVE);
 }
