@@ -23,6 +23,13 @@ class CustomLR1110 : public LR1110 {
       return state;
     }
 
+    int16_t begin(const ConfigLoRa_t& cfg) {
+      int16_t state = LR1110::begin(cfg);
+      // RadioLib begin() defaults to LDO; use the LR1110 DC/DC regulator.
+      if (state == RADIOLIB_ERR_NONE) state = setRegulatorDCDC();
+      return state;
+    }
+
     size_t getPacketLength(bool update) override {
       size_t len = LR1110::getPacketLength(update);
       if (len == 0 && getIrqStatus() & RADIOLIB_LR11X0_IRQ_HEADER_ERR) {
