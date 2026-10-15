@@ -282,10 +282,17 @@ public:
 
     if (_page == HomePage::FIRST) {
       display.setColor(UIColor::primary_txt);
+      #ifdef ENABLE_WIFI_INTERFACE
+      // smaller unread message ui for wifi variants
+      display.setTextSize(1);
+      sprintf(tmp, "Unread Msg: %d", _task->getMsgCount());
+      display.drawTextCentered(display.width() / 2, 22, tmp);
+      #else
+      // larger unread message ui for non wifi variants
       display.setTextSize(2);
       sprintf(tmp, "MSG: %d", _task->getMsgCount());
       display.drawTextCentered(display.width() / 2, 22, tmp);
-      
+      #endif
       #ifdef UI_SHOW_CLOCK
       display.setTextSize(3);
       uint32_t now = _rtc->getCurrentTime();
@@ -301,7 +308,7 @@ public:
         IPAddress ip = WiFi.localIP();
         snprintf(tmp, sizeof(tmp), "IP: %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
         display.setTextSize(1);
-        display.drawTextCentered(display.width() / 2, 54, tmp);
+        display.drawTextCentered(display.width() / 2, 32, tmp);
       #endif
       if (_task->hasConnection()) {
         display.setColor(UIColor::warning_txt);
