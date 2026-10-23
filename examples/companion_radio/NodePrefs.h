@@ -47,7 +47,7 @@ public:
   uint8_t agc_reset_interval = 5;  // secs / 4 (dev_plus: 20s AGC reset on by default)
   char default_scope_name[31];
   uint8_t default_scope_key[16];
-  int8_t tz_offset = 0;
+  float tz_offset = 0;
 #ifdef ENABLE_WIFI_INTERFACE
   #ifndef WIFI_SSID
     #define WIFI_SSID ""
