@@ -81,6 +81,11 @@ public:
     return tSym;
   }
 
+  bool lastRxHadCRC() override {
+    bool crc = true;
+    ((CustomLR2021 *)_radio)->getLoRaRxHeaderInfo(NULL, &crc);
+    return crc;
+  }
   bool isReceivingPacket() override {
     return ((CustomLR2021 *)_radio)->isReceiving();
   }
