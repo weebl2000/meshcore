@@ -56,6 +56,7 @@ public:
     return (sf >= 5 && sf <= 12) ? detPeakValues[sf - 5] : 0;
   }
   
+  bool supportsRxBoostedGain() const override { return true; }
   bool setRxBoostedGainMode(bool en) override {
     return ((CustomLR1110 *)_radio)->setRxBoostedGainMode(en) == RADIOLIB_ERR_NONE;
   }

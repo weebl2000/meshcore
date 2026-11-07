@@ -9,11 +9,10 @@
 inline void sx126xResetAGC(SX126x* radio, bool rx_boost_gain) {
   radio->resetAGC();
 
-#ifdef SX126X_RX_BOOSTED_GAIN
   // resetAGC() only restores boosted gain when it was enabled, so apply the
-  // caller's current (user/flash) setting explicitly.
+  // caller's current (user/flash) setting explicitly. Always reapply: the gain
+  // may have been changed at runtime even when no build default is set.
   radio->setRxBoostedGainMode(rx_boost_gain);
-#endif
 #ifdef SX126X_REGISTER_PATCH
   // for improved RX with Heltec v4 — calibration may reset this
   uint8_t r_data = 0;
