@@ -62,6 +62,7 @@ class UITask : public AbstractUITask {
   int _msgcount;
   unsigned long ui_started_at, next_batt_chck;
   unsigned long next_backlight_btn_check = 0;
+  unsigned long _backlight_off = 0;
 #ifdef PIN_STATUS_LED
   int led_state = 0;
   unsigned long next_led_change = 0;

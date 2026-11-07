@@ -5,8 +5,6 @@
 #include <helpers/NRF52Board.h>
 
 class T1000eBoard : public NRF52BoardDCDC {
-protected:
-
 public:
   T1000eBoard() : NRF52Board("T1000E_OTA") {}
   void begin();

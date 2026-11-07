@@ -804,7 +804,7 @@ void Mesh::sendDirect(Packet* packet, const uint8_t* path, uint8_t path_len, uin
     packet->path_len = 0;
     pri = 5;   // maybe make this configurable
   } else {
-    if (path_len > MAX_PATH_SIZE) {
+    if (!Packet::isValidPathLen(path_len)) {
       _mgr->free(packet);
       return;
     }
