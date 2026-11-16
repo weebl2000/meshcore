@@ -2,8 +2,8 @@
 #include "t1000e_sensors.h"
 #include "target.h"
 #include <helpers/ArduinoHelpers.h>
+#include <helpers/sensors/AirohaGpsDriver.h>
 #include <helpers/sensors/MicroNMEALocationProvider.h>
-#include <helpers/sensors/AirohaSleep.h>
 
 T1000eBoard board;
 
@@ -12,8 +12,9 @@ RADIO_CLASS radio = new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BU
 WRAPPER_CLASS radio_driver(radio, board);
 
 NRF52RTCClock rtc_clock;
-MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
-T1000SensorManager sensors = T1000SensorManager(nmea);
+AirohaGpsDriver gps_driver(Serial1);
+MicroNMEALocationProvider nmea(gps_driver, &rtc_clock);
+T1000SensorManager sensors(nmea, gps_driver);
 
 #ifdef DISPLAY_CLASS
   NullDisplayDriver display;
@@ -90,29 +91,16 @@ mesh::LocalIdentity radio_new_identity() {
 }
 
 void T1000SensorManager::start_gps() {
-  gps_active = true;
-  digitalWrite(GPS_EN, HIGH);
-  delay(10);
-  digitalWrite(GPS_RTC_INT, HIGH);
-  delay(5);
-  digitalWrite(GPS_RTC_INT, LOW);
+  _nmea->setGpsOn(true);
 }
 
 void T1000SensorManager::stop_gps() {
-  gps_active = false;
-  digitalWrite(GPS_VRTC_EN, HIGH);   // keep GPS RTC alive for faster fix on wake
-  digitalWrite(GPS_RTC_INT, LOW);    // make sure this is LOW so we can pulse it to wake
-  airohaEnterSleep(_nmea);           // send command to put the GPS into RTC backup sleep
-  digitalWrite(GPS_EN, LOW);
+  _nmea->setGpsOn(false);
 }
 
 
 bool T1000SensorManager::begin() {
-  // init GPS
-  Serial1.begin(115200);
-  digitalWrite(GPS_RESET, HIGH);
-  delay(10);
-  digitalWrite(GPS_RESET, LOW);
+  _gps_driver->initialize();
   return true;
 }
 
@@ -134,7 +122,7 @@ void T1000SensorManager::loop() {
   _nmea->loop();
 
   if (millis_passed(next_gps_update)) {
-    if (gps_active && _nmea->isValid()) {
+    if (_nmea->isGpsOn() && _nmea->hasValidFix()) {
       node_lat = ((double)_nmea->getLatitude())/1000000.;
       node_lon = ((double)_nmea->getLongitude())/1000000.;
       node_altitude = ((double)_nmea->getAltitude()) / 1000.0;
@@ -150,7 +138,7 @@ const char* T1000SensorManager::getSettingName(int i) const {
 }
 const char* T1000SensorManager::getSettingValue(int i) const {
   if (i == 0) {
-    return gps_active ? "1" : "0";
+    return _nmea->isGpsOn() ? "1" : "0";
   }
   return NULL;
 }
