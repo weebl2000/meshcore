@@ -7,10 +7,6 @@
 #define USER_BTN_PRESSED LOW
 #endif
 
-#ifndef USER_BTN_PRESSED
-#define USER_BTN_PRESSED LOW
-#endif
-
 #define AUTO_OFF_MILLIS      20000  // 20 seconds
 #define BOOT_SCREEN_MILLIS   4000   // 4 seconds
 
@@ -52,7 +48,7 @@ void UITask::begin(NodePrefs* node_prefs, const char* build_date, const char* fi
 
 void UITask::renderCurrScreen() {
   char tmp[80];
-  if (!millis_passed(BOOT_SCREEN_MILLIS)) { // boot screen
+  if (millis() < BOOT_SCREEN_MILLIS) { // boot screen
     // meshcore logo
     _display->setColor(UIColor::corp_blue);
     int logoWidth = 128;

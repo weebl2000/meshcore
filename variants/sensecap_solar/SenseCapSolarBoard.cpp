@@ -127,7 +127,7 @@ void SenseCapSolarBoard::updateWhiteStatusLed() {
 }
 
 void SenseCapSolarBoard::loop() {
-  mesh::MainBoard::loop();   // keep base housekeeping (watchdog etc.) if it ever gains any
+  NRF52BoardDCDC::loop();   // base housekeeping (watchdog feed, runtime voltage check)
   updateWhiteStatusLed();
 }
 

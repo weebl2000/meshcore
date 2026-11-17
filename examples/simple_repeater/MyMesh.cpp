@@ -847,7 +847,8 @@ void MyMesh::onPeerDataRecv(mesh::Packet *packet, uint8_t type, int sender_idx, 
         memcpy(temp, &timestamp, 4);        // mostly an extra blob to help make packet_hash unique
         temp[4] = (TXT_TYPE_CLI_DATA << 2); // NOTE: legacy was: TXT_TYPE_PLAIN
 
-        auto reply = createDatagram(PAYLOAD_TYPE_TXT_MSG, client->id, acl.getEncryptionKey(*client), temp, 5 + text_len, acl.getEncryptionNonce(*client));
+        const uint8_t* send_key = acl.getEncryptionKey(*client);  // key before nonce: the nonce call advances fallback state
+        auto reply = createDatagram(PAYLOAD_TYPE_TXT_MSG, client->id, send_key, temp, 5 + text_len, acl.getEncryptionNonce(*client));
         if (reply) {
           if (client->out_path_len == OUT_PATH_UNKNOWN) {
             sendFloodReply(reply, CLI_REPLY_DELAY_MILLIS, packet->getPathHashSize());
@@ -1418,12 +1419,14 @@ void MyMesh::loop() {
   if (set_radio_at && millisHasNowPassed(set_radio_at)) { // apply pending (temporary) radio params
     set_radio_at = 0;                                     // clear timer
     radio_driver.setParams(pending_freq, pending_bw, pending_sf, pending_cr);
+    setDefaultCR(pending_cr);
     MESH_DEBUG_PRINTLN("Temp radio params");
   }
 
   if (revert_radio_at && millisHasNowPassed(revert_radio_at)) { // revert radio params to orig
     revert_radio_at = 0;                                        // clear timer
     radio_driver.setParams(_prefs.freq, _prefs.bw, _prefs.sf, _prefs.cr);
+    setDefaultCR(_prefs.cr);
     MESH_DEBUG_PRINTLN("Radio params restored");
   }
 
