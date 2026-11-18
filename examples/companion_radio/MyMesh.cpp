@@ -1036,7 +1036,9 @@ void MyMesh::begin() {
   if (dirty_reset) saveNonces();  // persist bumped nonces immediately
   next_nonce_persist = futureMillis(60000);
 
+#ifndef DISABLE_SESSION_KEYS
   _store->loadSessionKeys(this);
+#endif
 
   addChannel("Public", PUBLIC_GROUP_PSK); // pre-configure public channel
   _store->loadChannels(this);
@@ -2603,6 +2605,7 @@ void MyMesh::checkCLIRescueCmd() {
 
       }
 
+#ifndef DISABLE_SESSION_KEYS
     } else if (memcmp(cli_command, "rekey ", 6) == 0) {
       const char* name_prefix = &cli_command[6];
       ContactInfo* c = searchContactsByPrefix(name_prefix);
@@ -2616,6 +2619,7 @@ void MyMesh::checkCLIRescueCmd() {
       } else {
         Serial.println("  Error: contact not found");
       }
+#endif
     } else if (strcmp(cli_command, "reboot") == 0) {
       if (isNonceDirty()) saveNonces();
       saveSessionKeys();

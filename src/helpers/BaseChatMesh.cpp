@@ -1170,6 +1170,23 @@ void BaseChatMesh::loop() {
 
 // --- Session key flash-backed wrappers ---
 
+#ifdef DISABLE_SESSION_KEYS
+// Session key negotiation compiled out (for flash-constrained boards).
+// Peers are still served with static-ECDH AEAD / ECB.
+SessionKeyEntry* BaseChatMesh::findSessionKey(const uint8_t*) { return nullptr; }
+SessionKeyEntry* BaseChatMesh::allocateSessionKey(const uint8_t*) { return nullptr; }
+void BaseChatMesh::removeSessionKey(const uint8_t*) { }
+bool BaseChatMesh::shouldInitiateSessionKey(const ContactInfo&) { return false; }
+bool BaseChatMesh::initiateSessionKeyNegotiation(const ContactInfo&) { return false; }
+bool BaseChatMesh::handleSessionKeyResponse(ContactInfo&, const uint8_t*, uint8_t) { return false; }
+uint8_t BaseChatMesh::handleIncomingSessionKeyInit(ContactInfo&, const uint8_t*, uint8_t*) { return 0; }
+void BaseChatMesh::checkSessionKeyTimeouts() { }
+const uint8_t* BaseChatMesh::getPeerSessionKey(int) { return nullptr; }
+const uint8_t* BaseChatMesh::getPeerPrevSessionKey(int) { return nullptr; }
+void BaseChatMesh::onSessionKeyDecryptSuccess(int) { }
+bool BaseChatMesh::applyLoadedSessionKey(const uint8_t*, uint8_t, uint16_t, const uint8_t*, const uint8_t*) { return false; }
+bool BaseChatMesh::getSessionKeyEntry(int, uint8_t*, uint8_t*, uint16_t*, uint8_t*, uint8_t*) { return false; }
+#else
 SessionKeyEntry* BaseChatMesh::findSessionKey(const uint8_t* pub_key) {
   auto entry = session_keys.findByPrefix(pub_key);
   if (entry) return entry;
@@ -1203,6 +1220,8 @@ void BaseChatMesh::removeSessionKey(const uint8_t* pub_key) {
   session_keys.remove(pub_key);
   session_keys_dirty = true;
 }
+
+#endif  // DISABLE_SESSION_KEYS
 
 // --- Session key support (Phase 2 — initiator) ---
 
@@ -1264,6 +1283,7 @@ uint16_t BaseChatMesh::getEncryptionNonceFor(const ContactInfo& contact) {
   return nonce;
 }
 
+#ifndef DISABLE_SESSION_KEYS
 bool BaseChatMesh::shouldInitiateSessionKey(const ContactInfo& contact) {
   // Only for AEAD-capable peers
   if (!(contact.flags & CONTACT_FLAG_AEAD)) return false;
@@ -1514,6 +1534,8 @@ void BaseChatMesh::onSessionKeyDecryptSuccess(int peer_idx) {
   }
 }
 
+#endif  // DISABLE_SESSION_KEYS
+
 const uint8_t* BaseChatMesh::getPeerEncryptionKey(int peer_idx, const uint8_t* static_secret) {
   int i = matching_peer_indexes[peer_idx];
   if (i >= 0 && i < num_contacts)
@@ -1528,6 +1550,7 @@ uint16_t BaseChatMesh::getPeerEncryptionNonce(int peer_idx) {
   return getPeerNextAeadNonce(peer_idx);
 }
 
+#ifndef DISABLE_SESSION_KEYS
 // Session key persistence helpers (delegated to subclass for file I/O)
 bool BaseChatMesh::applyLoadedSessionKey(const uint8_t* pub_key_prefix, uint8_t flags, uint16_t nonce,
                                           const uint8_t* session_key, const uint8_t* prev_session_key) {
@@ -1538,3 +1561,4 @@ bool BaseChatMesh::getSessionKeyEntry(int idx, uint8_t* pub_key_prefix, uint8_t*
                                        uint8_t* session_key, uint8_t* prev_session_key) {
   return session_keys.getEntryForSave(idx, pub_key_prefix, flags, nonce, session_key, prev_session_key);
 }
+#endif  // DISABLE_SESSION_KEYS

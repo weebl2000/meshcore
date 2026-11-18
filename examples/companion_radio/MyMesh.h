@@ -254,14 +254,20 @@ private:
   void saveChannels() { _store->saveChannels(this); }
   void saveContacts();
   void saveNonces() { if (_store->saveNonces(this)) clearNonceDirty(); }
+#ifdef DISABLE_SESSION_KEYS
+  void saveSessionKeys() { }
+#else
   void saveSessionKeys() { if (_store->saveSessionKeys(this)) { clearSessionKeysDirty(); clearSessionKeysRemoved(); } }
+#endif
   void onSessionKeysUpdated() override { saveSessionKeys(); }
 
   // Flash-backed session key overrides
+#ifndef DISABLE_SESSION_KEYS
   bool loadSessionKeyRecordFromFlash(const uint8_t* pub_key_prefix,
       uint8_t* flags, uint16_t* nonce, uint8_t* session_key, uint8_t* prev_session_key) override {
     return _store->loadSessionKeyByPrefix(pub_key_prefix, flags, nonce, session_key, prev_session_key);
   }
+#endif
   void mergeAndSaveSessionKeys() override { saveSessionKeys(); }
 
   DataStore* _store;
