@@ -1,8 +1,9 @@
 #include "UITask.h"
+#include <helpers/ArduinoHelpers.h>
 #include <helpers/TxtDataHelpers.h>
-#include "../MyMesh.h"
 #include "target.h"
 #include <time.h>
+#include <RTClib.h>
 #ifdef ENABLE_WIFI_INTERFACE
   #include <WiFi.h>
 #endif
@@ -31,24 +32,30 @@
   #define PRESS_LABEL "long press"
 #endif
 
+// Copied from simple_repeater
+#define CTL_TYPE_NODE_DISCOVER_REQ      0x80
+#define CTL_TYPE_NODE_DISCOVER_RESP     0x90
+
 #include "icons.h"
 
 class SplashScreen : public UIScreen {
   UITask* _task;
   unsigned long dismiss_after;
   char _version_info[12];
+  const char* _build_date;
 
 public:
-  SplashScreen(UITask* task) : _task(task) {
+  SplashScreen(UITask* task, const char* ver, const char* build_date) : _task(task) {
     // strip off dash and commit hash by changing dash to null terminator
     // e.g: v1.2.3-abcdef -> v1.2.3
-    const char *ver = FIRMWARE_VERSION;
     const char *dash = strchr(ver, '-');
 
     int len = dash ? dash - ver : strlen(ver);
     if (len >= sizeof(_version_info)) len = sizeof(_version_info) - 1;
     memcpy(_version_info, ver, len);
     _version_info[len] = 0;
+
+    _build_date = build_date;
 
     dismiss_after = millis() + BOOT_SCREEN_MILLIS;
   }
@@ -74,7 +81,7 @@ public:
 
     display.setColor(UIColor::secondary_txt);
     display.setTextSize(1);
-    display.drawTextCentered(display.width()/2, 48, FIRMWARE_BUILD_DATE);
+    display.drawTextCentered(display.width()/2, 48, _build_date);
 
     return 1000;
   }
@@ -110,6 +117,11 @@ static void formatFixAge(char* buf, size_t size, uint32_t seconds) {
 }
 #endif
 
+struct AdvertPath {
+  char    name[32];
+  uint32_t recv_timestamp;
+};
+
 class HomeScreen : public UIScreen {
   enum HomePage {
     FIRST,
@@ -140,6 +152,7 @@ class HomeScreen : public UIScreen {
   NodePrefs* _node_prefs;
   uint8_t _page;
   bool _shutdown_init;
+  int recent_next_idx;
   AdvertPath recent[UI_RECENT_LIST_SIZE];
 #if UI_DISCOVER_SCREEN
   DiscoveredNode discovered[DISCOVERED_NODES_TABLE_SIZE]; // not circular, latest discovered nodes are not kept
@@ -231,19 +244,31 @@ class HomeScreen : public UIScreen {
 public:
   HomeScreen(UITask* task, mesh::RTCClock* rtc, SensorManager* sensors, NodePrefs* node_prefs)
      : _task(task), _rtc(rtc), _sensors(sensors), _node_prefs(node_prefs), _page(0),
-       _shutdown_init(false), sensors_lpp(200) {  }
+       _shutdown_init(false), sensors_lpp(200)
+  {
+    memset(recent, 0, sizeof(recent));
+    recent_next_idx = 0;
+  }
+
+  void addToRecents(ContactInfo &contact) {
+    auto p = &recent[recent_next_idx];
+    recent_next_idx = (recent_next_idx + 1) % UI_RECENT_LIST_SIZE;
+
+    strcpy(p->name, contact.name);
+    p->recv_timestamp = _rtc->getCurrentTime();
+  }
 
 #if UI_DISCOVER_SCREEN
   bool sendDiscoverRequest() {
     uint8_t cmd_bytes[6];
     cmd_bytes[0] = CTL_TYPE_NODE_DISCOVER_REQ | 1; // DISCOVER_REQ | prefix only
     cmd_bytes[1] = 0xFF;     // Repeaters
-    the_mesh.getRNG()->random((uint8_t *) &disc_node_req_tag, 4);  // generate random tag
+    _task->getMesh()->getRNG()->random((uint8_t *) &disc_node_req_tag, 4);  // generate random tag
     memcpy(&cmd_bytes[2], &disc_node_req_tag, 4);
     disc_nodes_count = 0;
-    mesh::Packet* req = the_mesh.createControlData(cmd_bytes, sizeof(cmd_bytes));
+    mesh::Packet* req = _task->getMesh()->createControlData(cmd_bytes, sizeof(cmd_bytes));
     if (req) {
-      the_mesh.sendZeroHop(req);
+      _task->getMesh()->sendZeroHop(req);
       discovery_req_time = millis();
       return true;
     }
@@ -257,7 +282,7 @@ public:
       d->type = packet->payload[0] & 0xF;
       d->snr_out = ((int8_t)packet->payload[1]) / 4.0;
       d->snr_in = radio_driver.getLastSNR();
-      ContactInfo* c = the_mesh.lookupContactByPubKey(&packet->payload[6], 8);
+      ContactInfo* c = _task->getMesh()->lookupContactByPubKey(&packet->payload[6], 8);
       if (c != NULL) {
         strncpy(d->name, c->name, 32);
       } else {
@@ -341,9 +366,9 @@ public:
           display.drawTextCentered(display.width() / 2, 110, "< Connected >");
         else
           display.drawTextCentered(display.width() / 2, 43, "< Connected >");
-      } else if (the_mesh.getBLEPin() != 0) { // BT pin
+      } else if (_task->getBLEPin() != 0) { // BT pin
         display.setColor(UIColor::warning_txt);
-        sprintf(tmp, "Pin:%d", the_mesh.getBLEPin());
+        sprintf(tmp, "Pin:%d", _task->getBLEPin());
         if (_node_prefs->ui_show_clock) {
           display.setTextSize(1);
           display.drawTextCentered(display.width() / 2, 110, tmp);
@@ -353,11 +378,10 @@ public:
         }
       }
     } else if (_page == HomePage::RECENT) {
-      the_mesh.getRecentlyHeard(recent, UI_RECENT_LIST_SIZE);
       display.setColor(UIColor::primary_txt);
       int y = 20;
-      for (int i = 0; i < UI_RECENT_LIST_SIZE; i++, y += 11) {
-        auto a = &recent[i];
+      for (int i = 0, k = recent_next_idx; i < UI_RECENT_LIST_SIZE; i++, y += 11, k = (k + 1) % UI_RECENT_LIST_SIZE) {
+        auto a = &recent[k];
         if (a->name[0] == 0) continue;  // empty slot
         uint32_t secs = safeElapsedSecs(_rtc->getCurrentTime(), a->recv_timestamp);
         if (secs < 60) {
@@ -624,7 +648,15 @@ public:
 #endif
     if (c == KEY_ENTER && _page == HomePage::ADVERT) {
       _task->notify(UIEventType::ack);
-      if (the_mesh.advert()) {
+
+      mesh::Packet* pkt;
+      if (_node_prefs->advert_loc_policy == ADVERT_LOC_NONE) {
+        pkt = _task->getMesh()->createSelfAdvert(_node_prefs->node_name);
+      } else {
+        pkt = _task->getMesh()->createSelfAdvert(_node_prefs->node_name, sensors.node_lat, sensors.node_lon);
+      }
+      if (pkt) {
+        _task->getMesh()->sendZeroHop(pkt);
         _task->showAlert("Advert sent!", 1000);
       } else {
         _task->showAlert("Advert failed..", 1000);
@@ -757,9 +789,14 @@ public:
   }
 };
 
-void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs) {
+void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs, MultiSerialInterface* serial,
+                   BaseChatMesh* mesh, uint32_t ble_pin, const char* ver, const char* build_date)
+{
   _display = display;
   _sensors = sensors;
+  _interfaceManager = serial;
+  the_mesh = mesh;
+  _ble_pin = ble_pin;
 
 #if defined(PIN_USER_BTN)
   user_btn.begin();
@@ -792,7 +829,7 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   ui_started_at = millis();
   _alert_expiry = 0;
 
-  splash = new SplashScreen(this);
+  splash = new SplashScreen(this, ver, build_date);
   home = new HomeScreen(this, &rtc_clock, sensors, node_prefs);
   msg_preview = new MsgPreviewScreen(this, &rtc_clock);
   setCurrScreen(splash);
@@ -889,6 +926,8 @@ void UITask::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path
   if (!hasConnection()) {
     notify(UIEventType::newContactMessage);
   }
+
+  ((HomeScreen *) home)->addToRecents(contact);
 }
 
 void UITask::onControlDataRecv(const mesh::Packet* packet) {
@@ -1180,7 +1219,7 @@ char UITask::checkDisplayOn(char c) {
 
 char UITask::handleLongPress(char c) {
   if (millis() - ui_started_at < 8000) {   // long press in first 8 seconds since startup -> CLI/rescue
-    the_mesh.enterCLIRescue();
+    the_mesh->enterCLIRescue();
     c = 0;   // consume event
   }
   return c;
@@ -1225,7 +1264,7 @@ void UITask::toggleGPS() {
           _node_prefs->getGpsPrefs()->setGpsEnabled(*_sensors, true);
           notify(UIEventType::ack);
         }
-        the_mesh.savePrefs();
+        the_mesh->savePrefs();
         showAlert(_node_prefs->getGpsPrefs()->isGpsEnabled() ? "GPS: Enabled" : "GPS: Disabled", 800);
         _next_refresh = 0;
         break;
@@ -1253,7 +1292,7 @@ void UITask::toggleBuzzer() {
       buzzer.quiet(true);
     }
     _node_prefs->buzzer_quiet = buzzer.isQuiet();
-    the_mesh.savePrefs();
+    the_mesh->savePrefs();
     showAlert(buzzer.isQuiet() ? "Buzzer: OFF" : "Buzzer: ON", 800);
     _next_refresh = 0;  // trigger refresh
   #endif
