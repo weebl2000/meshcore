@@ -10,20 +10,24 @@
 #include <helpers/sensors/LocationProvider.h>
 #ifdef DISPLAY_CLASS
   #include "NullDisplayDriver.h"
+  #include <UITask.h>
 #endif
 #ifdef PIN_USER_BTN
   #include <helpers/ui/MomentaryButton.h>
 #endif
 
+class AirohaGpsDriver;
+
 class T1000SensorManager: public SensorManager {
-  bool gps_active = false;
   LocationProvider * _nmea;
+  AirohaGpsDriver* _gps_driver;
 
   void start_gps();
   void sleep_gps();
   void stop_gps();
 public:
-  T1000SensorManager(LocationProvider &nmea): _nmea(&nmea) { }
+  T1000SensorManager(LocationProvider &nmea, AirohaGpsDriver& gps_driver)
+    : _nmea(&nmea), _gps_driver(&gps_driver) { }
   bool begin() override;
   bool querySensors(uint8_t requester_permissions, CayenneLPP& telemetry) override;
   void loop() override;
@@ -36,6 +40,7 @@ public:
 
 #ifdef DISPLAY_CLASS
   extern NullDisplayDriver display;
+  extern UITask ui_task;
 #endif
 
 #ifdef PIN_USER_BTN

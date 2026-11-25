@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Arduino.h>
 #include <Mesh.h>
 
 #ifdef ESP32
@@ -67,6 +68,7 @@ public:
 
   void markSeen(const mesh::Packet* packet) override {
     uint32_t now = millis();
+    if (now == 0) now = 1;  // 0 is the "empty slot" sentinel in _last_seen
     uint8_t hash[MAX_HASH_SIZE];
     packet->calculatePacketHash(hash);
 

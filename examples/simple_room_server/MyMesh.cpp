@@ -89,7 +89,8 @@ void MyMesh::pushPostToClient(ClientInfo *client, PostInfo &post) {
   mesh::Utils::sha256((uint8_t *)&client->extra.room.pending_ack, 4, reply_data, len, client->id.pub_key, PUB_KEY_SIZE);
   client->extra.room.push_post_timestamp = post.post_timestamp;
 
-  auto reply = createDatagram(PAYLOAD_TYPE_TXT_MSG, client->id, acl.getEncryptionKey(*client), reply_data, len, acl.getEncryptionNonce(*client));
+  const uint8_t* send_key = acl.getEncryptionKey(*client);  // key before nonce: the nonce call advances fallback state
+  auto reply = createDatagram(PAYLOAD_TYPE_TXT_MSG, client->id, send_key, reply_data, len, acl.getEncryptionNonce(*client));
   if (reply) {
     if (client->out_path_len == OUT_PATH_UNKNOWN) {
       unsigned long delay_millis = 0;
@@ -140,7 +141,7 @@ mesh::Packet *MyMesh::createSelfAdvert() {
 }
 
 File MyMesh::openAppend(const char *fname) {
-#if defined(NRF52_PLATFORM)
+#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   return _fs->open(fname, FILE_O_WRITE);
 #elif defined(RP2040_PLATFORM)
   return _fs->open(fname, "a");
@@ -500,7 +501,8 @@ void MyMesh::onPeerDataRecv(mesh::Packet *packet, uint8_t type, int sender_idx, 
       mesh::Utils::sha256((uint8_t *)&ack_hash, 4, data, 5 + strlen((char *)&data[5]), client->id.pub_key,
                           PUB_KEY_SIZE);
 
-      uint8_t temp[166];
+      // 5-byte datagram header + 3-byte reflected CLI prefix + 160-byte reply text + NUL
+      uint8_t temp[169];
       bool send_ack;
       if (flags == TXT_TYPE_CLI_DATA || flags == TXT_TYPE_CLI_COMMAND) {
         if (client->isAdmin()) {
@@ -562,7 +564,8 @@ void MyMesh::onPeerDataRecv(mesh::Packet *packet, uint8_t type, int sender_idx, 
         // mesh::Utils::sha256((uint8_t *)&expected_ack_crc, 4, temp, 5 + text_len, self_id.pub_key,
         // PUB_KEY_SIZE);
 
-        auto reply = createDatagram(PAYLOAD_TYPE_TXT_MSG, client->id, acl.getEncryptionKey(*client), temp, 5 + text_len, acl.getEncryptionNonce(*client));
+        const uint8_t* send_key = acl.getEncryptionKey(*client);  // key before nonce: the nonce call advances fallback state
+        auto reply = createDatagram(PAYLOAD_TYPE_TXT_MSG, client->id, send_key, temp, 5 + text_len, acl.getEncryptionNonce(*client));
         if (reply) {
           if (client->out_path_len == OUT_PATH_UNKNOWN) {
             sendFloodReply(reply, delay_millis + SERVER_RESPONSE_DELAY, packet->getPathHashSize());
@@ -844,7 +847,7 @@ void MyMesh::applyTempRadioParams(float freq, float bw, uint8_t sf, uint8_t cr, 
 }
 
 bool MyMesh::formatFileSystem() {
-#if defined(NRF52_PLATFORM)
+#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   return InternalFS.format();
 #elif defined(RP2040_PLATFORM)
   return LittleFS.format();

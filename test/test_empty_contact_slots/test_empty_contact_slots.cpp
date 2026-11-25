@@ -109,7 +109,7 @@ public:
   void onChannelMessageRecv(const mesh::GroupChannel&, mesh::Packet*, uint32_t, const char*) override {}
   uint8_t onContactRequest(const ContactInfo&, uint32_t, const uint8_t*, uint8_t, uint8_t*) override { return 0; }
   void onContactResponse(const ContactInfo&, const uint8_t*, uint8_t) override {}
-  uint32_t calcFloodTimeoutMillisFor(uint32_t) const override { return 1000; }
+  uint32_t calcFloodTimeoutMillisFor(uint32_t, uint8_t) const override { return 1000; }
   uint32_t calcDirectTimeoutMillisFor(uint32_t, uint8_t) const override { return 1000; }
   void onSendTimeout() override {}
 
